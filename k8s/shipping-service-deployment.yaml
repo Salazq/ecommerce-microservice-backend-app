@@ -27,14 +27,16 @@ spec:
         image: shipping-service:latest
         imagePullPolicy: Never
         ports:
-        - containerPort: 8600
+        - containerPort: 8600        
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "dev"
         - name: SPRING_ZIPKIN_BASE_URL
           value: "http://zipkin:9411/"
         - name: SPRING_CONFIG_IMPORT
-          value: "optional:configserver:http://cloud-config:9296"       
+          value: "optional:configserver:http://cloud-config:9296"
+        - name: EUREKA_INSTANCE
+          value: "shipping-service"
         readinessProbe:
           httpGet:
             path: /shipping-service/actuator/health

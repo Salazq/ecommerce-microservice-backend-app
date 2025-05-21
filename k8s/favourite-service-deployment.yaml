@@ -27,14 +27,16 @@ spec:
         image: favourite-service:latest
         imagePullPolicy: Never
         ports:
-        - containerPort: 8800
+        - containerPort: 8800        
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "dev"
         - name: SPRING_ZIPKIN_BASE_URL
           value: "http://zipkin:9411/"
         - name: SPRING_CONFIG_IMPORT
-          value: "optional:configserver:http://cloud-config:9296"        
+          value: "optional:configserver:http://cloud-config:9296"
+        - name: EUREKA_INSTANCE
+          value: "favourite-service"
         readinessProbe:
           httpGet:
             path: /favourite-service/actuator/health

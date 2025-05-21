@@ -24,12 +24,14 @@ spec:
         image: cloud-config:latest
         imagePullPolicy: Never
         ports:
-        - containerPort: 9296
+        - containerPort: 9296        
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "dev"
         - name: SPRING_ZIPKIN_BASE_URL
           value: "http://zipkin:9411/"
+        - name: EUREKA_INSTANCE
+          value: "cloud-config"
         readinessProbe:
           httpGet:
             path: /actuator/health

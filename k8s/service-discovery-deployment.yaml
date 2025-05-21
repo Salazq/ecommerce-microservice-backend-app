@@ -21,12 +21,14 @@ spec:
         image: service-discovery:latest
         imagePullPolicy: Never
         ports:
-        - containerPort: 8761
+        - containerPort: 8761        
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "dev"
         - name: SPRING_ZIPKIN_BASE_URL
           value: "http://zipkin:9411/"
+        - name: EUREKA_INSTANCE
+          value: "service-discovery"
         readinessProbe:
           httpGet:
             path: /actuator/health

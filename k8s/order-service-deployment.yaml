@@ -27,14 +27,16 @@ spec:
         image: order-service:latest
         imagePullPolicy: Never
         ports:
-        - containerPort: 8300
+        - containerPort: 8300        
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "dev"
         - name: SPRING_ZIPKIN_BASE_URL
           value: "http://zipkin:9411/"
         - name: SPRING_CONFIG_IMPORT
-          value: "optional:configserver:http://cloud-config:9296"        
+          value: "optional:configserver:http://cloud-config:9296"
+        - name: EUREKA_INSTANCE
+          value: "order-service"
         readinessProbe:
           httpGet:
             path: /order-service/actuator/health

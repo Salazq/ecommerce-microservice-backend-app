@@ -12,7 +12,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10        
-
   service-discovery:
     build:
       context: ./service-discovery
@@ -26,6 +25,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
+      - EUREKA_INSTANCE=service-discovery
     networks:
       - ecommerce-network
     healthcheck:
@@ -33,7 +33,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-
   cloud-config:
     build:
       context: ./cloud-config
@@ -49,6 +48,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
+      - EUREKA_INSTANCE=cloud-config
     networks:
       - ecommerce-network
     healthcheck:
@@ -57,7 +57,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # A partir de aquí, todos los servicios se inician secuencialmente
   api-gateway:
     build:
       context: ./api-gateway
@@ -75,6 +74,7 @@ services:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-discovery:8761/eureka
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
       - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+      - EUREKA_INSTANCE=api-gateway
     networks:
       - ecommerce-network
     healthcheck:
@@ -86,7 +86,6 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
-
   proxy-client:
     build:
       context: ./proxy-client
@@ -101,6 +100,7 @@ services:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
       - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+      - EUREKA_INSTANCE=proxy-client
     networks:
       - ecommerce-network
     healthcheck:
@@ -112,7 +112,6 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
-
   order-service:
     build:
       context: ./order-service
@@ -127,6 +126,7 @@ services:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
       - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+      - EUREKA_INSTANCE=order-service
     networks:
       - ecommerce-network
     healthcheck:
@@ -138,7 +138,6 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
-
   product-service:
     build:
       context: ./product-service
@@ -153,6 +152,7 @@ services:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
       - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+      - EUREKA_INSTANCE=product-service
     networks:
       - ecommerce-network
     healthcheck:
@@ -164,7 +164,6 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
-
   user-service:
     build:
       context: ./user-service
@@ -179,6 +178,7 @@ services:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
       - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+      - EUREKA_INSTANCE=user-service
     networks:
       - ecommerce-network
     healthcheck:
@@ -190,7 +190,6 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
-
   shipping-service:
     build:
       context: ./shipping-service
@@ -205,6 +204,7 @@ services:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
       - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+      - EUREKA_INSTANCE=shipping-service
     networks:
       - ecommerce-network
     healthcheck:
@@ -216,7 +216,6 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
-
   # payment-service:
   #   build:
   #     context: ./payment-service
@@ -231,6 +230,7 @@ services:
   #     - SPRING_PROFILES_ACTIVE=dev
   #     - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
   #     - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+  #     - EUREKA_INSTANCE=payment-service
   #   networks:
   #     - ecommerce-network
   #   healthcheck:
@@ -242,7 +242,6 @@ services:
   #     restart_policy:
   #       condition: on-failure
   #       delay: 15s
-    
   # favourite-service:
   #   build:
   #     context: ./favourite-service
@@ -257,6 +256,7 @@ services:
   #     - SPRING_PROFILES_ACTIVE=dev
   #     - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
   #     - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+  #     - EUREKA_INSTANCE=favourite-service
   #   networks:
   #     - ecommerce-network
   #   healthcheck:

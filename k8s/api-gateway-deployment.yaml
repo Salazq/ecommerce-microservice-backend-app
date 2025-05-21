@@ -24,7 +24,7 @@ spec:
         image: api-gateway:latest
         imagePullPolicy: Never
         ports:
-        - containerPort: 8080
+        - containerPort: 8080        
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "dev"
@@ -34,6 +34,8 @@ spec:
           value: "http://zipkin:9411/"
         - name: SPRING_CONFIG_IMPORT
           value: "optional:configserver:http://cloud-config:9296"
+        - name: EUREKA_INSTANCE
+          value: "api-gateway"
         readinessProbe:
           httpGet:
             path: /actuator/health
