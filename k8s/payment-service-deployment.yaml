@@ -12,13 +12,16 @@ spec:
       labels:
         app: payment-service
     spec:
-      initContainers:
+      initContainers:      
       - name: wait-for-cloud-config
         image: curlimages/curl:7.85.0
         command: ['sh', '-c', 'until curl -f http://cloud-config:9296/actuator/health; do echo waiting for cloud-config; sleep 5; done']
       - name: wait-for-service-discovery
         image: curlimages/curl:7.85.0
         command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
+      - name: wait-for-shipping-service
+        image: curlimages/curl:7.85.0
+        command: ['sh', '-c', 'until curl -f http://shipping-service:8600/shipping-service/actuator/health; do echo waiting for shipping-service; sleep 5; done']
       containers:
       - name: payment-service
         image: payment-service:latest
@@ -31,10 +34,10 @@ spec:
         - name: SPRING_ZIPKIN_BASE_URL
           value: "http://zipkin:9411/"
         - name: SPRING_CONFIG_IMPORT
-          value: "optional:configserver:http://cloud-config:9296"
+          value: "optional:configserver:http://cloud-config:9296"        
         readinessProbe:
           httpGet:
-            path: /actuator/health
+            path: /payment-service/actuator/health
             port: 8400
           initialDelaySeconds: 10
           periodSeconds: 5
