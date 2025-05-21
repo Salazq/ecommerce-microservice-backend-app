@@ -12,13 +12,15 @@ spec:
       labels:
         app: proxy-client
     spec:
-      initContainers:
-      - name: wait-for-cloud-config
+      initContainers:      - name: wait-for-cloud-config
         image: curlimages/curl:7.85.0
         command: ['sh', '-c', 'until curl -f http://cloud-config:9296/actuator/health; do echo waiting for cloud-config; sleep 5; done']
       - name: wait-for-service-discovery
         image: curlimages/curl:7.85.0
         command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
+      - name: wait-for-api-gateway
+        image: curlimages/curl:7.85.0
+        command: ['sh', '-c', 'until curl -f http://api-gateway:8080/actuator/health; do echo waiting for api-gateway; sleep 5; done']
       containers:
       - name: proxy-client
         image: proxy-client:latest
@@ -31,10 +33,9 @@ spec:
         - name: SPRING_ZIPKIN_BASE_URL
           value: "http://zipkin:9411/"
         - name: SPRING_CONFIG_IMPORT
-          value: "optional:configserver:http://cloud-config:9296"
-        readinessProbe:
+          value: "optional:configserver:http://cloud-config:9296"        readinessProbe:
           httpGet:
-            path: /actuator/health
+            path: /app/actuator/health
             port: 8900
           initialDelaySeconds: 10
           periodSeconds: 5
