@@ -1,0 +1,90 @@
+# E2E Test Configuration
+# This configuration file is used for end-to-end testing against deployed Kubernetes services
+
+# Application Configuration
+spring:
+  profiles:
+    active: e2e
+  application:
+    name: ecommerce-e2e-tests
+
+# E2E Test Specific Configuration
+e2e:
+  # Kubernetes API Gateway Configuration
+  api-gateway:
+    host: localhost
+    port: 30080
+    base-url: http://localhost:30080
+    
+  # Test Configuration
+  test:
+    # Timeout settings (in seconds)
+    timeout:
+      default: 30
+      authentication: 10
+      api-calls: 15
+    
+    # Retry configuration
+    retry:
+      max-attempts: 3
+      delay-seconds: 2
+    
+    # Test data configuration
+    cleanup:
+      enabled: true
+      on-failure: true
+    
+    # Authentication settings
+    auth:
+      token-expiry-buffer-minutes: 5
+      
+  # Test users configuration (for test data)
+  users:
+    admin:
+      username: admin
+      password: admin123
+      email: admin@test.com
+    test:
+      prefix: test-user-
+      domain: test.com
+      default-password: Password123!
+
+# Logging Configuration for E2E Tests
+logging:
+  level:
+    com.selimhorri.app.e2e: DEBUG
+    io.restassured: INFO
+    org.springframework.test: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+
+# Test specific properties
+test:
+  # Database connection timeout for validation
+  db:
+    connection-timeout: 5000
+    
+  # Service health check configuration
+  health:
+    check-timeout: 10
+    check-interval: 2
+    
+  # Test execution configuration
+  execution:
+    parallel: false
+    thread-count: 1
+    
+# Microservices URLs (through API Gateway)
+microservices:
+  user-service:
+    base-path: /user-service/api
+  product-service:
+    base-path: /product-service/api
+  order-service:
+    base-path: /order-service/api
+  payment-service:
+    base-path: /payment-service/api
+  shipping-service:
+    base-path: /shipping-service/api
+  favourite-service:
+    base-path: /favourite-service/api
