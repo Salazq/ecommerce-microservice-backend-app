@@ -11,7 +11,8 @@ services:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9411/health"]
       interval: 10s
       timeout: 5s
-      retries: 10        
+      retries: 10      
+
   service-discovery:
     build:
       context: ./service-discovery
@@ -33,6 +34,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
   cloud-config:
     build:
       context: ./cloud-config
@@ -86,6 +88,7 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
+
   proxy-client:
     build:
       context: ./proxy-client
@@ -112,6 +115,7 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
+
   order-service:
     build:
       context: ./order-service
@@ -138,6 +142,7 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
+
   product-service:
     build:
       context: ./product-service
@@ -164,6 +169,7 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
+
   user-service:
     build:
       context: ./user-service
@@ -189,7 +195,8 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
-        delay: 15s
+        delay: 15s  
+
   shipping-service:
     build:
       context: ./shipping-service
@@ -216,32 +223,34 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
-  # payment-service:
-  #   build:
-  #     context: ./payment-service
-  #     dockerfile: Dockerfile
-  #   container_name: payment-service
-  #   ports:
-  #     - 8400:8400
-  #   depends_on:
-  #     shipping-service:
-  #       condition: service_healthy
-  #   environment:
-  #     - SPRING_PROFILES_ACTIVE=dev
-  #     - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
-  #     - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
-  #     - EUREKA_INSTANCE=payment-service
-  #   networks:
-  #     - ecommerce-network
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8400/payment-service/actuator/health"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   deploy:
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 15s
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - 8400:8400
+    depends_on:
+      shipping-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+      - EUREKA_INSTANCE=payment-service
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8400/payment-service/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        
   # favourite-service:
   #   build:
   #     context: ./favourite-service
