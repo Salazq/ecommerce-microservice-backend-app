@@ -6,8 +6,7 @@ import com.selimhorri.app.dto.CredentialDto;
 import com.selimhorri.app.dto.UserDto;
 
 public interface UserMappingHelper {
-	
-	public static UserDto map(final User user) {
+		public static UserDto map(final User user) {
 		return UserDto.builder()
 				.userId(user.getUserId())
 				.firstName(user.getFirstName())
@@ -15,7 +14,7 @@ public interface UserMappingHelper {
 				.imageUrl(user.getImageUrl())
 				.email(user.getEmail())
 				.phone(user.getPhone())
-				.credentialDto(
+				.credentialDto(user.getCredential() != null ? 
 						CredentialDto.builder()
 							.credentialId(user.getCredential().getCredentialId())
 							.username(user.getCredential().getUsername())
@@ -25,11 +24,10 @@ public interface UserMappingHelper {
 							.isAccountNonExpired(user.getCredential().getIsAccountNonExpired())
 							.isAccountNonLocked(user.getCredential().getIsAccountNonLocked())
 							.isCredentialsNonExpired(user.getCredential().getIsCredentialsNonExpired())
-							.build())
+							.build() : null)
 				.build();
 	}
-	
-	public static User map(final UserDto userDto) {
+		public static User map(final UserDto userDto) {
 		return User.builder()
 				.userId(userDto.getUserId())
 				.firstName(userDto.getFirstName())
@@ -37,7 +35,7 @@ public interface UserMappingHelper {
 				.imageUrl(userDto.getImageUrl())
 				.email(userDto.getEmail())
 				.phone(userDto.getPhone())
-				.credential(
+				.credential(userDto.getCredentialDto() != null ?
 						Credential.builder()
 							.credentialId(userDto.getCredentialDto().getCredentialId())
 							.username(userDto.getCredentialDto().getUsername())
@@ -47,7 +45,7 @@ public interface UserMappingHelper {
 							.isAccountNonExpired(userDto.getCredentialDto().getIsAccountNonExpired())
 							.isAccountNonLocked(userDto.getCredentialDto().getIsAccountNonLocked())
 							.isCredentialsNonExpired(userDto.getCredentialDto().getIsCredentialsNonExpired())
-							.build())
+							.build() : null)
 				.build();
 	}
 	

@@ -30,7 +30,7 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(callSuper = true, exclude = {"addresses", "credential"})
 @Data
 @Builder
-public final class User extends AbstractMappedEntity implements Serializable {
+public final class User extends AbstractMappedEntity {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -52,12 +52,11 @@ public final class User extends AbstractMappedEntity implements Serializable {
 	private String email;
 	
 	private String phone;
-	
 	@JsonIgnore
 	@OneToMany(cascade = CascadeType.ALL, mappedBy = "user", fetch = FetchType.LAZY)
 	private Set<Address> addresses;
 	
-	@OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "user")
+	@OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "user")
 	private Credential credential;
 	
 }

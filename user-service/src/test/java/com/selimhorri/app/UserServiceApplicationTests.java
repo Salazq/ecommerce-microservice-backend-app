@@ -3,20 +3,15 @@ package com.selimhorri.app;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
-import org.junit.jupiter.api.BeforeEach;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,8 +26,6 @@ import com.selimhorri.app.domain.User;
 import com.selimhorri.app.dto.AddressDto;
 import com.selimhorri.app.dto.CredentialDto;
 import com.selimhorri.app.dto.UserDto;
-import com.selimhorri.app.exception.wrapper.AddressNotFoundException;
-import com.selimhorri.app.exception.wrapper.CredentialNotFoundException;
 import com.selimhorri.app.exception.wrapper.UserObjectNotFoundException;
 import com.selimhorri.app.repository.AddressRepository;
 import com.selimhorri.app.repository.CredentialRepository;
@@ -64,10 +57,8 @@ class UserServiceApplicationTests {
 	@Test
 	@DisplayName("Test 1: Find all users - Success scenario")
 	void testFindAllUsers() {
-		// Given
 		List<User> users = new ArrayList<>();
 		
-		// Create credentials for the first user
 		Credential credential1 = Credential.builder()
 				.credentialId(1)
 				.username("johndoe")
@@ -88,7 +79,6 @@ class UserServiceApplicationTests {
 				.credential(credential1)
 				.build();
 		
-		// Create credentials for the second user
 		Credential credential2 = Credential.builder()
 				.credentialId(2)
 				.username("janesmith")
@@ -109,7 +99,6 @@ class UserServiceApplicationTests {
 				.credential(credential2)
 				.build();
 				
-		// Set up bi-directional relationships
 		credential1.setUser(user1);
 		credential2.setUser(user2);
 		
@@ -118,10 +107,8 @@ class UserServiceApplicationTests {
 		
 		when(userRepository.findAll()).thenReturn(users);
 		
-		// When
 		List<UserDto> result = userService.findAll();
 		
-		// Then
 		assertEquals(2, result.size());
 		assertEquals("John", result.get(0).getFirstName());
 		assertEquals("Jane", result.get(1).getFirstName());
@@ -130,8 +117,7 @@ class UserServiceApplicationTests {
 		@Test
 	@DisplayName("Test 2: Find user by ID - Success scenario")
 	void testFindUserById_Success() {
-		// Given
-		// Create a Credential object first
+
 		Credential credential = Credential.builder()
 				.credentialId(1)
 				.username("johndoe")
@@ -152,15 +138,12 @@ class UserServiceApplicationTests {
 				.credential(credential)
 				.build();
 		
-		// Set up bi-directional relationship
 		credential.setUser(user);
 		
 		when(userRepository.findById(1)).thenReturn(Optional.of(user));
 		
-		// When
 		UserDto result = userService.findById(1);
 		
-		// Then
 		assertNotNull(result);
 		assertEquals(1, result.getUserId());
 		assertEquals("John", result.getFirstName());
@@ -171,10 +154,8 @@ class UserServiceApplicationTests {
 	@Test
 	@DisplayName("Test 3: Find user by ID - User not found")
 	void testFindUserById_NotFound() {
-		// Given
 		when(userRepository.findById(999)).thenReturn(Optional.empty());
-		
-		// When & Then
+
 		assertThrows(UserObjectNotFoundException.class, () -> userService.findById(999));
 		verify(userRepository, times(1)).findById(999);
 	}
@@ -182,7 +163,6 @@ class UserServiceApplicationTests {
 	@Test
 	@DisplayName("Test 4: Find address by ID - Success scenario")
 	void testFindAddressById_Success() {
-		// Given
 		User user = User.builder().userId(1).firstName("John").lastName("Doe").build();
 		Address address = Address.builder()
 				.addressId(1)
@@ -194,10 +174,8 @@ class UserServiceApplicationTests {
 		
 		when(addressRepository.findById(1)).thenReturn(Optional.of(address));
 		
-		// When
 		AddressDto result = addressService.findById(1);
 		
-		// Then
 		assertNotNull(result);
 		assertEquals(1, result.getAddressId());
 		assertEquals("123 Main St", result.getFullAddress());
@@ -208,7 +186,7 @@ class UserServiceApplicationTests {
 	@Test
 	@DisplayName("Test 5: Find credential by username - Success scenario")
 	void testFindCredentialByUsername_Success() {
-		// Given
+
 		User user = User.builder().userId(1).firstName("John").lastName("Doe").build();
 		Credential credential = Credential.builder()
 				.credentialId(1)
@@ -218,11 +196,9 @@ class UserServiceApplicationTests {
 				.build();
 		
 		when(credentialRepository.findByUsername("johndoe")).thenReturn(Optional.of(credential));
-		
-		// When
+
 		CredentialDto result = credentialService.findByUsername("johndoe");
 		
-		// Then
 		assertNotNull(result);
 		assertEquals(1, result.getCredentialId());
 		assertEquals("johndoe", result.getUsername());

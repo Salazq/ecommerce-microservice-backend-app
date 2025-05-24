@@ -3,6 +3,8 @@ package com.selimhorri.app.exception;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
+import org.springframework.context.annotation.Bean; // Added import
+import org.springframework.context.annotation.Primary; // Added import
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -11,6 +13,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import com.fasterxml.jackson.databind.ObjectMapper; // Added import
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule; // Added import
 import com.selimhorri.app.exception.payload.ExceptionMsg;
 import com.selimhorri.app.exception.wrapper.AddressNotFoundException;
 import com.selimhorri.app.exception.wrapper.CredentialNotFoundException;
@@ -24,6 +28,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class ApiExceptionHandler {
+
+	@Bean
+	@Primary
+	public ObjectMapper objectMapper() {
+		ObjectMapper objectMapper = new ObjectMapper();
+		objectMapper.registerModule(new JavaTimeModule());
+		return objectMapper;
+	}
 	
 	@ExceptionHandler(value = {
 		MethodArgumentNotValidException.class,

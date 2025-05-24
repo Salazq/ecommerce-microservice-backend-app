@@ -32,7 +32,7 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(callSuper = true, exclude = {"user", "verificationTokens"})
 @Data
 @Builder
-public final class Credential extends AbstractMappedEntity implements Serializable {
+public final class Credential extends AbstractMappedEntity {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -58,7 +58,6 @@ public final class Credential extends AbstractMappedEntity implements Serializab
 	
 	@Column(name = "is_account_non_locked")
 	private Boolean isAccountNonLocked;
-	
 	@Column(name = "is_credentials_non_expired")
 	private Boolean isCredentialsNonExpired;
 	
