@@ -11,9 +11,8 @@ param(
     
     [Parameter(HelpMessage="Skip pre-test health checks")]
     [switch]$SkipHealthCheck,
-    
-    [Parameter(HelpMessage="API Gateway URL")]
-    [string]$ApiGatewayUrl = "http://localhost:30080"
+      [Parameter(HelpMessage="API Gateway URL")]
+    [string]$ApiGatewayUrl = "http://localhost:8080"
 )
 
 # Color functions for better output

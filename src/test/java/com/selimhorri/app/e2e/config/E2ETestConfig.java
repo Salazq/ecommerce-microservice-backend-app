@@ -13,11 +13,10 @@ import org.springframework.context.annotation.Bean;
  */
 @TestConfiguration
 public class E2ETestConfig {
-    
-    // URL del API Gateway en Kubernetes (ajusta según tu configuración)
-    private static final String API_GATEWAY_BASE_URL = "http://localhost:30080"; // NodePort del API Gateway
-    // Si estás usando minikube, puedes usar: minikube ip + NodePort
-    // private static final String API_GATEWAY_BASE_URL = "http://192.168.49.2:30080";
+      // URL del API Gateway (works for both Docker Compose and Kubernetes)
+    private static final String API_GATEWAY_BASE_URL = "http://localhost:8080"; // API Gateway port
+    // For minikube or other K8s deployments, adjust the URL accordingly
+    // private static final String API_GATEWAY_BASE_URL = "http://192.168.49.2:8080";
     
     @BeforeAll
     static void setUp() {

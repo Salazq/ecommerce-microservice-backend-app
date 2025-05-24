@@ -1,5 +1,6 @@
 # E2E Test Configuration
-# This configuration file is used for end-to-end testing against deployed Kubernetes services
+# This configuration file is used for end-to-end testing against deployed services
+# Works with both Docker Compose and Kubernetes deployments
 
 # Application Configuration
 spring:
@@ -10,11 +11,11 @@ spring:
 
 # E2E Test Specific Configuration
 e2e:
-  # Kubernetes API Gateway Configuration
+  # API Gateway Configuration (works for both Docker Compose and Kubernetes)
   api-gateway:
     host: localhost
-    port: 30080
-    base-url: http://localhost:30080
+    port: 8080
+    base-url: http://localhost:8080
     
   # Test Configuration
   test:

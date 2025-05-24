@@ -39,9 +39,8 @@ public class E2ETestProperties {
     }
 
     public static class ApiGateway {
-        private String host = "localhost";
-        private int port = 30080;
-        private String baseUrl = "http://localhost:30080";
+        private String host = "localhost";        private int port = 8080;
+        private String baseUrl = "http://localhost:8080";
 
         public String getHost() {
             return host;

@@ -24,7 +24,7 @@ import org.junit.platform.suite.api.SuiteDisplayName;
  * Prerequisites:
  * - Kubernetes cluster is running
  * - All microservices are deployed and healthy
- * - API Gateway is accessible on NodePort 30080
+ * - API Gateway is accessible on port 8080
  * - Spring profile 'e2e' is active
  * 
  * Usage:
