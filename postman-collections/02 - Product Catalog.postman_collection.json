@@ -1,0 +1,304 @@
+{
+	"info": {
+		"_postman_id": "facd6b1e-ab4c-4a30-9f69-409d030d85d8",
+		"name": "02 - Product Catalog",
+		"description": "End-to-end test for product creation, category management, and inventory operations across microservices",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45283350",
+		"_collection_link": "https://juan-9558827.postman.co/workspace/Juan's-Workspace~a07300ff-77d9-47bf-8f9d-d90af44b465d/collection/45283350-facd6b1e-ab4c-4a30-9f69-409d030d85d8?action=share&source=collection_link&creator=45283350"
+	},
+	"item": [
+		{
+			"name": "Create Product Category",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Category creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Category data is correct', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('categoryId');",
+							"    pm.expect(jsonData.categoryTitle).to.equal('Smartphones');",
+							"    pm.collectionVariables.set('categoryId', jsonData.categoryId);",
+							"    pm.collectionVariables.set('categoryTitle', jsonData.categoryTitle);",
+							"    pm.collectionVariables.set('imageUrl', jsonData.imageUrl);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"categoryTitle\": \"Smartphones\",\n    \"imageUrl\": \"https://example.com/smartphones.jpg\",\n    \"parentCategory\": {\n        \"categoryId\": 1\n    }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/product-service/api/categories",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"product-service",
+						"api",
+						"categories"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create First Product Copy",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Product creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Product linked to category', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('productId');",
+							"    pm.expect(response.productTitle).to.equal('iPhone 15 Pro');",
+							"    pm.expect(response.category.categoryId).to.equal(parseInt(pm.collectionVariables.get('categoryId')));",
+							"    pm.collectionVariables.set('productId', response.productId);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"packages": {},
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"productTitle\": \"iPhone 15 Pro\",\n    \"imageUrl\": \"https://example.com/iphone15pro.jpg\",\n    \"sku\": \"IPH15PRO-256-BLU\",\n    \"priceUnit\": 999.99,\n    \"quantity\": 50,\n    \"category\": {\n        \"categoryId\": {{categoryId}},\n        \"categoryTitle\": \"{{categoryTitle}}\",\n        \"imageUrl\": \"{{imageUrl}}\"\n    }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/product-service/api/products",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"product-service",
+						"api",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Second Product",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Second product creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Second product linked to category', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('productId');",
+							"    pm.expect(response.productTitle).to.equal('Samsung Galaxy S24');",
+							"    pm.collectionVariables.set('secondProductId', response.productId);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"productTitle\": \"Samsung Galaxy S24\",\n  \"imageUrl\": \"https://example.com/galaxys24.jpg\",\n  \"sku\": \"SAM24GAL001\",\n  \"priceUnit\": 849.99,\n  \"quantity\": 30,\n  \"category\": {\n        \"categoryId\": {{categoryId}},\n        \"categoryTitle\": \"{{categoryTitle}}\",\n        \"imageUrl\": \"{{imageUrl}}\"\n    }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/product-service/api/products",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"product-service",
+						"api",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Products",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Products retrieved successfully', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Both products exist in category', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.collection).to.be.an('array');",
+							"    pm.expect(response.collection.length).to.be.least(6)",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/product-service/api/products",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"product-service",
+						"api",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Product",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Product update successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Inventory quantity updated', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.quantity).to.equal(75);",
+							"    pm.expect(response.priceUnit).to.equal(949.99);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"productId\": {{productId}},\n  \"productTitle\": \"iPhone 15 Pro\",\n  \"imageUrl\": \"https://example.com/iphone15pro.jpg\",\n  \"sku\": \"IPH15PRO001\",\n  \"priceUnit\": 949.99,\n  \"quantity\": 75,\n      \"category\": {\n        \"categoryId\": 4,\n        \"categoryTitle\": \"Smartphones\",\n        \"imageUrl\": \"https://example.com/smartphones.jpg\"\n    }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/product-service/api/products/{{productId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"product-service",
+						"api",
+						"products",
+						"{{productId}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set timestamp for unique test data",
+					"const timestamp = Date.now();",
+					"pm.collectionVariables.set('timestamp', timestamp);"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "categoryId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "productId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "secondProductId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "timestamp",
+			"value": ""
+		},
+		{
+			"key": "categoryTitle",
+			"value": ""
+		},
+		{
+			"key": "imageUrl",
+			"value": ""
+		}
+	]
+}

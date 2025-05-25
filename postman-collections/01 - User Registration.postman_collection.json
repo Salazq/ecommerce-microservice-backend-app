@@ -1,0 +1,406 @@
+{
+	"info": {
+		"_postman_id": "8de5deab-8647-4834-8454-830a108998b0",
+		"name": "01 - User Registration",
+		"description": "End-to-end test for user registration, authentication, and profile management across microservices",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45283350",
+		"_collection_link": "https://juan-9558827.postman.co/workspace/Juan's-Workspace~a07300ff-77d9-47bf-8f9d-d90af44b465d/collection/45283350-8de5deab-8647-4834-8454-830a108998b0?action=share&source=collection_link&creator=45283350"
+	},
+	"item": [
+		{
+			"name": "Register New User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('User registration successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('User data returned correctly', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('userId');",
+							"    pm.expect(jsonData).to.have.property('firstName', 'Jane');",
+							"    pm.expect(jsonData).to.have.property('lastName', 'Smith');",
+							"    pm.expect(jsonData).to.have.property('email', 'jane.smith@test.com');",
+							"    pm.expect(jsonData).to.have.property('phone', '+1234567890');",
+							"    ",
+							"    // Save user ID for subsequent tests",
+							"    pm.collectionVariables.set('newUserId', jsonData.userId);",
+							"    pm.collectionVariables.set('newUserFirstName', jsonData.firstName);",
+							"    pm.collectionVariables.set('newUserLastName', jsonData.lastName);",
+							"    pm.collectionVariables.set('newUserImageUrl', jsonData.imageUrl);",
+							"    pm.collectionVariables.set('newUserEmail', jsonData.email);",
+							"    pm.collectionVariables.set('newUserPhone', jsonData.phone);",
+							"    ",
+							"});",
+							"",
+							"pm.test('Credential data returned', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('credential');",
+							"    pm.expect(jsonData.credential).to.have.property('username', 'janesmith');",
+							"    pm.expect(jsonData.credential).to.have.property('roleBasedAuthority', 'ROLE_USER');",
+							"    pm.expect(jsonData.credential).to.have.property('isEnabled', true);",
+							"});",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"email\": \"jane.smith@test.com\",\n  \"phone\": \"+1234567890\",\n  \"imageUrl\": \"http://example.com/image.jpg\",\n  \"credential\": {\n    \"username\": \"janesmith\",\n    \"password\": \"password123\",\n    \"roleBasedAuthority\": \"ROLE_USER\",\n    \"isEnabled\": true,\n    \"isAccountNonExpired\": true,\n    \"isAccountNonLocked\": true,\n    \"isCredentialsNonExpired\": true\n  }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/user-service/api/users",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"user-service",
+						"api",
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Profile",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Profile retrieval successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Profile data correct', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('userId', parseInt(pm.collectionVariables.get('newUserId')));",
+							"    pm.expect(jsonData).to.have.property('firstName', 'Jane');",
+							"    pm.expect(jsonData).to.have.property('lastName', 'Smith');",
+							"    pm.expect(jsonData).to.have.property('email', 'jane.smith@test.com');",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/user-service/api/users/{{newUserId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"user-service",
+						"api",
+						"users",
+						"{{newUserId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Credentials",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Profile retrieval successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('User credential information present', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('username', 'janesmith');",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/user-service/api/credentials/{{newUserId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"user-service",
+						"api",
+						"credentials",
+						"{{newUserId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update User Profile",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Profile update successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Updated data correct', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('firstName', 'Jane');",
+							"    pm.expect(jsonData).to.have.property('lastName', 'Smith-Updated');",
+							"    pm.expect(jsonData).to.have.property('phone', '+1987654321');",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"userId\": {{newUserId}},\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith-Updated\",\n  \"email\": \"jane.smith@test.com\",\n  \"phone\": \"+1987654321\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/user-service/api/users",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"user-service",
+						"api",
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add User Address",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Address creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Address data correct', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('addressId');",
+							"    pm.expect(jsonData).to.have.property('fullAddress', '456 Oak Avenue, Downtown');",
+							"    pm.expect(jsonData).to.have.property('postalCode', '54321');",
+							"    pm.expect(jsonData).to.have.property('city', 'Metro City');",
+							"    ",
+							"    // Save address ID for subsequent tests",
+							"    pm.collectionVariables.set('addressId', jsonData.addressId);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullAddress\": \"456 Oak Avenue, Downtown\",\n  \"postalCode\": \"54321\", \n  \"city\": \"Metro City\",\n  \"user\": {\n    \"userId\": {{newUserId}},\n    \"firstName\": \"{{newUserFirstName}}\",\n    \"lastName\": \"{{newUserLastName}}\",\n    \"imageUrl\": \"{{newUserImageUrl}}\",\n    \"email\": \"{{newUserEmail}}\",\n    \"phone\": \"{{newUserPhone}}\"\n  }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/user-service/api/address",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"user-service",
+						"api",
+						"address"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Addresses",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Address retrieval successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Address list contains created address', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('fullAddress', '456 Oak Avenue, Downtown');",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/user-service/api/address/{{addressId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"user-service",
+						"api",
+						"address",
+						"{{addressId}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Collection-level pre-request script",
+					"console.log('Running User Registration and Profile Management E2E Test');"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Collection-level test script",
+					"pm.test('E2E Test Response Time Check', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "newUserId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "addressId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "newUserFirstName",
+			"value": ""
+		},
+		{
+			"key": "newUserLastName",
+			"value": ""
+		},
+		{
+			"key": "newUserImageUrl",
+			"value": ""
+		},
+		{
+			"key": "newUserEmail",
+			"value": ""
+		},
+		{
+			"key": "newUserPhone",
+			"value": ""
+		}
+	]
+}

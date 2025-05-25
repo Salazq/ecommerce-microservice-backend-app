@@ -4,6 +4,7 @@ INSERT INTO users
 ('selim', 'horri'),
 ('amine', 'ladjimi'),
 ('omar', 'derouiche'),
-('admin', 'admin');
+('admin', 'admin'),
+('test', 'user');
 
 

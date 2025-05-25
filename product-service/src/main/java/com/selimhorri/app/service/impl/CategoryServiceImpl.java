@@ -55,12 +55,15 @@ public class CategoryServiceImpl implements CategoryService {
 		return CategoryMappingHelper.map(this.categoryRepository
 				.save(CategoryMappingHelper.map(categoryDto)));
 	}
-	
-	@Override
+		@Override
 	public CategoryDto update(final Integer categoryId, final CategoryDto categoryDto) {
 		log.info("*** CategoryDto, service; update category with categoryId *");
+		// Verificar que la categoría existe
+		this.findById(categoryId);
+		// Asegurar que el categoryDto tenga el ID correcto
+		categoryDto.setCategoryId(categoryId);
 		return CategoryMappingHelper.map(this.categoryRepository
-				.save(CategoryMappingHelper.map(this.findById(categoryId))));
+				.save(CategoryMappingHelper.map(categoryDto)));
 	}
 	
 	@Override

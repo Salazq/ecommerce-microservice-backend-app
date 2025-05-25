@@ -1,0 +1,316 @@
+{
+	"info": {
+		"_postman_id": "d2ec0e34-a3e4-4800-851f-190104cdb2de",
+		"name": "03 - Shopping Cart and Order",
+		"description": "End-to-end test for cart operations, order placement, and order management across microservices",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45283350",
+		"_collection_link": "https://juan-9558827.postman.co/workspace/Juan's-Workspace~a07300ff-77d9-47bf-8f9d-d90af44b465d/collection/45283350-d2ec0e34-a3e4-4800-851f-190104cdb2de?action=share&source=collection_link&creator=45283350"
+	},
+	"item": [
+		{
+			"name": "Register New User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('User registration successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('User data returned correctly', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('userId');",
+							"    pm.expect(jsonData).to.have.property('firstName', 'Jane');",
+							"    pm.expect(jsonData).to.have.property('lastName', 'Smith');",
+							"    pm.expect(jsonData).to.have.property('email', 'jane.smith@test.com');",
+							"    pm.expect(jsonData).to.have.property('phone', '+1234567890');",
+							"    ",
+							"    // Save user ID for subsequent tests",
+							"    pm.collectionVariables.set('newUserId', jsonData.userId);",
+							"});",
+							"",
+							"pm.test('Credential data returned', function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.credential).to.have.property('username', 'janesmith');",
+							"    pm.expect(jsonData.credential).to.have.property('roleBasedAuthority', 'ROLE_USER');",
+							"    pm.expect(jsonData.credential).to.have.property('isEnabled', true);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"email\": \"jane.smith@test.com\",\n  \"phone\": \"+1234567890\",\n  \"imageUrl\": \"http://example.com/image.jpg\",\n  \"credential\": {\n    \"username\": \"janesmith\",\n    \"password\": \"password123\",\n    \"roleBasedAuthority\": \"ROLE_USER\",\n    \"isEnabled\": true,\n    \"isAccountNonExpired\": true,\n    \"isAccountNonLocked\": true,\n    \"isCredentialsNonExpired\": true\n  }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/user-service/api/users",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"user-service",
+						"api",
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Shopping Cart",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Cart creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Cart linked to user', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('cartId');",
+							"    pm.expect(response.userId).to.equal(parseInt(pm.collectionVariables.get('newUserId')));",
+							"    pm.collectionVariables.set('cartId', response.cartId);",
+							"     pm.collectionVariables.set('cartUserId', response.userId);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"userId\": {{newUserId}}\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/order-service/api/carts",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"order-service",
+						"api",
+						"carts"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Cart Details",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Cart details retrieved successfully', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Cart total calculated correctly', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.cartId).to.equal(parseInt(pm.collectionVariables.get('cartId')));",
+							"    pm.expect(response.userId).to.equal(parseInt(pm.collectionVariables.get('newUserId')));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/order-service/api/carts/{{cartId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"order-service",
+						"api",
+						"carts",
+						"{{cartId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Order from Cart",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Order creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Order contains correct data', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('orderId');",
+							"    pm.expect(response.orderFee).to.equal(199.99);",
+							"    pm.collectionVariables.set('orderId', response.orderId);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"orderDate\": \"25-05-2025__15:30:00:123456\",\n  \"orderDesc\": \"Compra de productos electrónicos\",\n  \"orderFee\": 199.99,\n  \"cart\":{\n    \"cartId\": {{cartId}},\n    \"userId\": {{cartUserId}}\n  }\n}\n"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/order-service/api/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"order-service",
+						"api",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Orders",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('User orders retrieved successfully', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Order appears in user order history', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.orderFee).to.equal(199.99)",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/order-service/api/orders/{{orderId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"order-service",
+						"api",
+						"orders",
+						"{{orderId}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set timestamp for unique test data",
+					"const timestamp = Date.now();",
+					"pm.collectionVariables.set('timestamp', timestamp);"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "productId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "cartId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "orderId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "categoryId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "timestamp",
+			"value": ""
+		},
+		{
+			"key": "newUserId",
+			"value": ""
+		},
+		{
+			"key": "cart",
+			"value": ""
+		},
+		{
+			"key": "cartUserId",
+			"value": ""
+		}
+	]
+}

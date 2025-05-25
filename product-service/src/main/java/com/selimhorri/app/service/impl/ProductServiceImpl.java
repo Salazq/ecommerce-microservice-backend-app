@@ -55,12 +55,15 @@ public class ProductServiceImpl implements ProductService {
 		return ProductMappingHelper.map(this.productRepository
 				.save(ProductMappingHelper.map(productDto)));
 	}
-	
 	@Override
 	public ProductDto update(final Integer productId, final ProductDto productDto) {
 		log.info("*** ProductDto, service; update product with productId *");
+		// Verificar que el producto existe
+		this.findById(productId);
+		// Asegurar que el productDto tenga el ID correcto
+		productDto.setProductId(productId);
 		return ProductMappingHelper.map(this.productRepository
-				.save(ProductMappingHelper.map(this.findById(productId))));
+				.save(ProductMappingHelper.map(productDto)));
 	}
 	
 	@Override

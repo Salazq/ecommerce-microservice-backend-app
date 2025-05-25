@@ -1,0 +1,329 @@
+{
+	"info": {
+		"_postman_id": "9598d6ed-be77-4a0b-80aa-75639f03af27",
+		"name": "04 - Order Fulfillment",
+		"description": "End-to-end test for order fulfillment, shipping creation, and tracking across microservices with JWT authentication",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45283350",
+		"_collection_link": "https://juan-9558827.postman.co/workspace/Juan's-Workspace~a07300ff-77d9-47bf-8f9d-d90af44b465d/collection/45283350-9598d6ed-be77-4a0b-80aa-75639f03af27?action=share&source=collection_link&creator=45283350"
+	},
+	"item": [
+		{
+			"name": "Create Order",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Order creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Order contains correct data', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('orderId');",
+							"    pm.expect(response.orderFee).to.equal(199.99);",
+							"    pm.collectionVariables.set('orderId', response.orderId);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"orderDate\": \"25-05-2025__15:30:00:123456\",\n  \"orderDesc\": \"Compra de productos electrónicos\",\n  \"orderFee\": 199.99,\n  \"cart\":{\n    \"cartId\": 1\n  }\n}\n"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/order-service/api/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"order-service",
+						"api",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create First Product",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Product creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Product linked to category', function () {",
+							"    const response = pm.response.json();",
+							"    pm.collectionVariables.set('productId', response.productId);",
+							"    pm.expect(response.productTitle).to.equal('iPhone 15 Pro');",
+							"    ",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"productTitle\": \"iPhone 15 Pro\",\n    \"imageUrl\": \"https://example.com/iphone15pro.jpg\",\n    \"sku\": \"IPH15PRO-256-BLU\",\n    \"priceUnit\": 999.99,\n    \"quantity\": 50,\n    \"category\": {\n        \"categoryId\": 1\n    }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/product-service/api/products",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"product-service",
+						"api",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Shipping Record",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Shipping record creation successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Shipping linked to order and address', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.orderId).to.equal(parseInt(pm.collectionVariables.get('orderId')));",
+							"    pm.expect(response.productId).to.equal(parseInt(pm.collectionVariables.get('productId')));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"productId\": {{productId}},\r\n  \"orderId\": {{orderId}},\r\n  \"orderedQuantity\": 2\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/shipping-service/api/shippings",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"shipping-service",
+						"api",
+						"shippings"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Track Shipping",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Shipping tracking successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Shipping details retrieved correctly', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.collection).to.be.an('array');",
+							"    const shipping = response.collection.find(s => s.orderId === parseInt(pm.collectionVariables.get('orderId')));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/shipping-service/api/shippings",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"shipping-service",
+						"api",
+						"shippings"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Shipping",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Shipping status update successful', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Shipping status updated to SHIPPED', function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.orderedQuantity).to.equal(3);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"productId\": {{productId}},\r\n  \"orderId\": {{orderId}},\r\n  \"orderedQuantity\": 3\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/shipping-service/api/shippings/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"shipping-service",
+						"api",
+						"shippings",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set timestamp for unique test data",
+					"const timestamp = Date.now();",
+					"pm.collectionVariables.set('timestamp', timestamp);"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "testuser",
+			"type": "string"
+		},
+		{
+			"key": "password",
+			"value": "testpassword123",
+			"type": "string"
+		},
+		{
+			"key": "jwtToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "addressId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "productId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "cartId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "orderId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "shippingId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "categoryId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "timestamp",
+			"value": ""
+		}
+	]
+}
