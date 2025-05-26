@@ -71,7 +71,7 @@ pipeline {
                         case 'stage':
                             echo "🧪 STAGE Environment: Running all tests (Unit + Integration + E2E + Security)"
                             
-                            parallel {
+                            parallel(
                                 'Unit Tests': {
                                     def services = getServicesList()
                                     for (svc in services) {
@@ -104,7 +104,7 @@ pipeline {
                                     bat "echo 'Security scan for stage environment'"
                                     // Aquí irían tus tests de seguridad específicos
                                 }
-                            }
+                            )
                             break
                             
                         case 'prod':
