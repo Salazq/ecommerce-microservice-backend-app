@@ -1,18 +1,13 @@
+// Forzar parámetros visibles para Jenkins
+properties([
+    parameters([
+        choice(name: 'ENVIRONMENT', choices: ['dev', 'stage', 'prod'], description: 'Environment to deploy'),
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
+    ])
+])
+
 pipeline {
     agent any
-
-    parameters {
-        choice(
-            name: 'ENVIRONMENT',
-            choices: ['dev', 'stage', 'prod'],
-            description: 'Environment to deploy'
-        )
-        booleanParam(
-            name: 'SKIP_TESTS',
-            defaultValue: false,
-            description: 'Skip test execution'
-        )
-    }
 
     environment {
         ENV = "${params.ENVIRONMENT}"
@@ -24,10 +19,9 @@ pipeline {
         stage('Validate Parameters') {
             steps {
                 script {
-                    echo "Deploying to environment: ${env.ENV}"
-                    echo "Namespace: ${env.NAMESPACE}"
-
-                    if (env.ENV == 'prod') {
+                    echo "Deploying to environment: ${ENV}"
+                    echo "Namespace: ${NAMESPACE}"
+                    if (ENV == 'prod') {
                         echo "⚠️  PRODUCTION DEPLOYMENT - Extra validations will be performed"
                     }
                 }
@@ -36,23 +30,23 @@ pipeline {
 
         stage('Start Minikube if needed') {
             steps {
-                powershell '''
-                $status = minikube status -p $env:MINIKUBE_PROFILE
-                if ($status -notmatch "host: Running") {
-                    Write-Host "Minikube no está iniciado para el profile $env:MINIKUBE_PROFILE. Iniciando..."
-                    minikube start -p $env:MINIKUBE_PROFILE --cpus=6 --memory=3800
-                } else {
-                    Write-Host "Minikube ya está corriendo para el profile $env:MINIKUBE_PROFILE."
-                }
-                '''
+                bat """
+                minikube status -p %MINIKUBE_PROFILE% | findstr /C:"host: Running" >nul
+                if %ERRORLEVEL% NEQ 0 (
+                    echo Minikube no está iniciado para el profile %MINIKUBE_PROFILE%. Iniciando...
+                    minikube start -p %MINIKUBE_PROFILE% --cpus=6 --memory=3800
+                ) else (
+                    echo Minikube ya está corriendo para el profile %MINIKUBE_PROFILE%.
+                )
+                """
             }
         }
 
         stage('Set Docker to Minikube Env') {
             steps {
-                powershell '''
-                Invoke-Expression -Command $(minikube -p $env:MINIKUBE_PROFILE docker-env --shell powershell)
-                '''
+                bat """
+                for /f "delims=" %%i in ('minikube -p %MINIKUBE_PROFILE% docker-env --shell cmd') do call %%i
+                """
             }
         }
 
@@ -62,19 +56,20 @@ pipeline {
             }
             steps {
                 script {
-                    switch (env.ENV) {
+                    switch (ENV) {
                         case 'dev':
                             echo "🚀 DEV Environment: Skipping all tests for faster deployment"
                             break
 
                         case 'stage':
-                            echo "🧪 STAGE Environment: Running all tests (Unit + Integration + E2E + Security)"
+                            echo "🧪 STAGE Environment: Running all tests"
+
                             parallel(
                                 'Unit Tests': {
                                     def services = getServicesList()
                                     for (svc in services) {
                                         dir(svc) {
-                                            powershell "./mvnw.cmd test -Dtest=*ApplicationTests"
+                                            bat "mvnw.cmd test -Dtest=*ApplicationTests"
                                         }
                                     }
                                 },
@@ -82,41 +77,40 @@ pipeline {
                                     def services = getServicesList()
                                     for (svc in services) {
                                         dir(svc) {
-                                            powershell "./mvnw.cmd test -Dtest=*ResourceIntegrationTest"
+                                            bat "mvnw.cmd test -Dtest=*ResourceIntegrationTest"
                                         }
                                     }
                                 },
                                 'E2E Tests': {
                                     echo "Running E2E tests for staging..."
-                                    powershell "npm install -g newman"
+                                    bat "npm install -g newman"
                                     dir('postman-collections') {
                                         def collections = findFiles(glob: '*.postman_collection.json')
                                         for (collection in collections) {
-                                            powershell "newman run \"${collection.name}\" --env-var \"spring_profiles_active=stage\""
+                                            bat "newman run ${collection.name} --env-var spring_profiles_active=stage"
                                         }
                                     }
                                 },
                                 'Security Tests': {
                                     echo "Running security tests for staging..."
-                                    powershell "echo 'Security scan for stage environment'"
-                                    // Add real security tests here
+                                    bat "echo 'Security scan for stage environment'"
                                 }
                             )
                             break
 
                         case 'prod':
-                            echo "🎯 PROD Environment: Running only E2E tests for final validation"
-                            powershell "npm install -g newman"
+                            echo "🎯 PROD Environment: Running only E2E tests"
+                            bat "npm install -g newman"
                             dir('postman-collections') {
                                 def collections = findFiles(glob: '*.postman_collection.json')
                                 for (collection in collections) {
-                                    powershell "newman run \"${collection.name}\" --env-var \"spring_profiles_active=prod\""
+                                    bat "newman run ${collection.name} --env-var spring_profiles_active=prod"
                                 }
                             }
                             break
 
                         default:
-                            error("Unknown environment: ${env.ENV}")
+                            error("Unknown environment: ${ENV}")
                     }
                 }
             }
@@ -128,11 +122,10 @@ pipeline {
                     def services = getServicesList()
                     for (svc in services) {
                         dir(svc) {
-                            powershell "minikube image build -p $env:MINIKUBE_PROFILE -t ${svc}:${env.ENV}-latest ."
-
-                            if (env.ENV == 'prod') {
+                            bat "minikube image build -p %MINIKUBE_PROFILE% -t ${svc}:${ENV}-latest ."
+                            if (ENV == 'prod') {
                                 def version = env.BUILD_NUMBER ?: 'latest'
-                                powershell "minikube image build -p $env:MINIKUBE_PROFILE -t ${svc}:${env.ENV}-${version} ."
+                                bat "minikube image build -p %MINIKUBE_PROFILE% -t ${svc}:${ENV}-${version} ."
                             }
                         }
                     }
@@ -143,15 +136,16 @@ pipeline {
         stage('Deploy to Minikube') {
             steps {
                 script {
-                    powershell "kubectl create namespace $env:NAMESPACE --dry-run=client -o yaml | kubectl apply -f -"
+                    bat "kubectl create namespace %NAMESPACE% --dry-run=client -o yaml | kubectl apply -f -"
+
                     def services = getDeploymentServicesList()
                     for (svc in services) {
-                        powershell "kubectl apply -f k8s/${svc}-deployment.yaml -n $env:NAMESPACE"
-                        powershell "kubectl apply -f k8s/${svc}-service.yaml -n $env:NAMESPACE"
+                        bat "kubectl apply -f k8s/${svc}-deployment.yaml -n %NAMESPACE%"
+                        bat "kubectl apply -f k8s/${svc}-service.yaml -n %NAMESPACE%"
 
-                        def imageTag = env.ENV == 'prod' ? "${svc}:${env.ENV}-${env.BUILD_NUMBER}" : "${svc}:${env.ENV}-latest"
-                        powershell "kubectl set image deployment/${svc} ${svc}=${imageTag} -n $env:NAMESPACE"
-                        powershell "kubectl rollout status deployment/${svc} -n $env:NAMESPACE --timeout=300s"
+                        def imageTag = (ENV == 'prod') ? "${svc}:${ENV}-${env.BUILD_NUMBER}" : "${svc}:${ENV}-latest"
+                        bat "kubectl set image deployment/${svc} ${svc}=${imageTag} -n %NAMESPACE%"
+                        bat "kubectl rollout status deployment/${svc} -n %NAMESPACE% --timeout=300s"
                     }
                 }
             }
@@ -160,13 +154,12 @@ pipeline {
         stage('Post-Deploy Validation') {
             steps {
                 script {
-                    echo "Validating deployment in ${env.ENV} environment..."
-                    powershell "kubectl get pods -n $env:NAMESPACE"
-                    powershell "kubectl get services -n $env:NAMESPACE"
+                    echo "Validating deployment in ${ENV}..."
+                    bat "kubectl get pods -n %NAMESPACE%"
+                    bat "kubectl get services -n %NAMESPACE%"
 
-                    if (env.ENV == 'prod') {
+                    if (ENV == 'prod') {
                         echo "Running production smoke tests..."
-                        // Add smoke tests here
                     }
                 }
             }
@@ -175,20 +168,21 @@ pipeline {
 
     post {
         always {
-            echo "Pipeline completed for environment: ${env.ENV}"
+            script {
+                echo "Pipeline completed for environment: ${ENV}"
+            }
         }
         failure {
             script {
-                if (env.ENV == 'prod') {
+                if (ENV == 'prod') {
                     echo "🚨 PRODUCTION DEPLOYMENT FAILED - Alert operations team!"
-                    // Add notifications
                 }
             }
         }
         success {
             script {
-                echo "✅ Successfully deployed to ${env.ENV} environment"
-                if (env.ENV == 'prod') {
+                echo "✅ Successfully deployed to ${ENV}"
+                if (ENV == 'prod') {
                     echo "🎉 Production deployment successful!"
                 }
             }
@@ -196,7 +190,7 @@ pipeline {
     }
 }
 
-// Función helper para obtener lista de servicios
+// Helpers fuera del bloque principal
 def getServicesList() {
     return [
         'service-discovery',
@@ -207,12 +201,9 @@ def getServicesList() {
         'product-service',
         'user-service',
         'shipping-service'
-        // 'payment-service',
-        // 'favourite-service'
     ]
 }
 
-// Función helper para servicios de deployment
 def getDeploymentServicesList() {
     return [
         'zipkin',
@@ -224,7 +215,5 @@ def getDeploymentServicesList() {
         'product-service',
         'user-service',
         'shipping-service'
-        // 'payment-service',
-        // 'favourite-service'
     ]
 }
