@@ -1,35 +1,3 @@
-// Funciones helper (deben ir fuera del bloque pipeline)
-def getServicesList() {
-    return [
-        'service-discovery',
-        'cloud-config',
-        'api-gateway',
-        'proxy-client',
-        'order-service',
-        'product-service',
-        'user-service',
-        'shipping-service'
-        // 'payment-service',
-        // 'favourite-service'
-    ]
-}
-
-def getDeploymentServicesList() {
-    return [
-        'zipkin',
-        'service-discovery',
-        'cloud-config',
-        'api-gateway',
-        'proxy-client',
-        'order-service',
-        'product-service',
-        'user-service',
-        'shipping-service'
-        // 'payment-service',
-        // 'favourite-service'
-    ]
-}
-
 pipeline {
     agent any
 
@@ -48,16 +16,18 @@ pipeline {
 
     environment {
         ENV = "${params.ENVIRONMENT}"
+        MINIKUBE_PROFILE = "minikube-${params.ENVIRONMENT}"
+        NAMESPACE = "${params.ENVIRONMENT}"
     }
 
     stages {
         stage('Validate Parameters') {
             steps {
                 script {
-                    echo "Deploying to environment: ${params.ENVIRONMENT}"
-                    echo "Namespace: ${params.ENVIRONMENT}"
+                    echo "Deploying to environment: ${env.ENV}"
+                    echo "Namespace: ${env.NAMESPACE}"
 
-                    if (params.ENVIRONMENT == 'prod') {
+                    if (env.ENV == 'prod') {
                         echo "⚠️  PRODUCTION DEPLOYMENT - Extra validations will be performed"
                     }
                 }
@@ -67,13 +37,12 @@ pipeline {
         stage('Start Minikube if needed') {
             steps {
                 powershell '''
-                $profile = "minikube-${env:ENV}"
-                $status = minikube status -p $profile
+                $status = minikube status -p $env:MINIKUBE_PROFILE
                 if ($status -notmatch "host: Running") {
-                    Write-Host "Minikube is not running. Starting..."
-                    minikube start -p $profile --cpus=6 --memory=3800
+                    Write-Host "Minikube no está iniciado para el profile $env:MINIKUBE_PROFILE. Iniciando..."
+                    minikube start -p $env:MINIKUBE_PROFILE --cpus=6 --memory=3800
                 } else {
-                    Write-Host "Minikube is already running."
+                    Write-Host "Minikube ya está corriendo para el profile $env:MINIKUBE_PROFILE."
                 }
                 '''
             }
@@ -82,20 +51,18 @@ pipeline {
         stage('Set Docker to Minikube Env') {
             steps {
                 powershell '''
-                $profile = "minikube-${env:ENV}"
-                Invoke-Expression -Command (& minikube -p $profile docker-env --shell powershell)
+                Invoke-Expression -Command $(minikube -p $env:MINIKUBE_PROFILE docker-env --shell powershell)
                 '''
             }
         }
 
         stage('Run Tests') {
             when {
-                not { params.SKIP_TESTS }
+                expression { return !params.SKIP_TESTS }
             }
             steps {
                 script {
-                    def envTag = params.ENVIRONMENT
-                    switch(envTag) {
+                    switch (env.ENV) {
                         case 'dev':
                             echo "🚀 DEV Environment: Skipping all tests for faster deployment"
                             break
@@ -107,7 +74,7 @@ pipeline {
                                     def services = getServicesList()
                                     for (svc in services) {
                                         dir(svc) {
-                                            powershell "./mvnw.cmd test -Dtest='**/*ApplicationTests'"
+                                            powershell "./mvnw.cmd test -Dtest=*ApplicationTests"
                                         }
                                     }
                                 },
@@ -115,7 +82,7 @@ pipeline {
                                     def services = getServicesList()
                                     for (svc in services) {
                                         dir(svc) {
-                                            powershell "./mvnw.cmd test -Dtest='**/*ResourceIntegrationTest'"
+                                            powershell "./mvnw.cmd test -Dtest=*ResourceIntegrationTest"
                                         }
                                     }
                                 },
@@ -125,13 +92,14 @@ pipeline {
                                     dir('postman-collections') {
                                         def collections = findFiles(glob: '*.postman_collection.json')
                                         for (collection in collections) {
-                                            powershell "newman run '${collection.name}' --env-var spring_profiles_active=stage"
+                                            powershell "newman run \"${collection.name}\" --env-var \"spring_profiles_active=stage\""
                                         }
                                     }
                                 },
                                 'Security Tests': {
                                     echo "Running security tests for staging..."
                                     powershell "echo 'Security scan for stage environment'"
+                                    // Add real security tests here
                                 }
                             )
                             break
@@ -142,13 +110,13 @@ pipeline {
                             dir('postman-collections') {
                                 def collections = findFiles(glob: '*.postman_collection.json')
                                 for (collection in collections) {
-                                    powershell "newman run '${collection.name}' --env-var spring_profiles_active=prod"
+                                    powershell "newman run \"${collection.name}\" --env-var \"spring_profiles_active=prod\""
                                 }
                             }
                             break
 
                         default:
-                            error("Unknown environment: ${envTag}")
+                            error("Unknown environment: ${env.ENV}")
                     }
                 }
             }
@@ -158,13 +126,13 @@ pipeline {
             steps {
                 script {
                     def services = getServicesList()
-                    def profile = "minikube-${params.ENVIRONMENT}"
                     for (svc in services) {
                         dir(svc) {
-                            powershell "minikube image build -p ${profile} -t ${svc}:${params.ENVIRONMENT}-latest ."
-                            if (params.ENVIRONMENT == 'prod') {
+                            powershell "minikube image build -p $env:MINIKUBE_PROFILE -t ${svc}:${env.ENV}-latest ."
+
+                            if (env.ENV == 'prod') {
                                 def version = env.BUILD_NUMBER ?: 'latest'
-                                powershell "minikube image build -p ${profile} -t ${svc}:${params.ENVIRONMENT}-${version} ."
+                                powershell "minikube image build -p $env:MINIKUBE_PROFILE -t ${svc}:${env.ENV}-${version} ."
                             }
                         }
                     }
@@ -175,21 +143,15 @@ pipeline {
         stage('Deploy to Minikube') {
             steps {
                 script {
-                    def profile = "minikube-${params.ENVIRONMENT}"
-                    def namespace = params.ENVIRONMENT
-                    powershell "kubectl create namespace ${namespace} --dry-run=client -o yaml | kubectl apply -f -"
-
+                    powershell "kubectl create namespace $env:NAMESPACE --dry-run=client -o yaml | kubectl apply -f -"
                     def services = getDeploymentServicesList()
                     for (svc in services) {
-                        powershell "kubectl apply -f k8s/${svc}-deployment.yaml -n ${namespace}"
-                        powershell "kubectl apply -f k8s/${svc}-service.yaml -n ${namespace}"
+                        powershell "kubectl apply -f k8s/${svc}-deployment.yaml -n $env:NAMESPACE"
+                        powershell "kubectl apply -f k8s/${svc}-service.yaml -n $env:NAMESPACE"
 
-                        def imageTag = params.ENVIRONMENT == 'prod'
-                            ? "${svc}:${params.ENVIRONMENT}-${env.BUILD_NUMBER}"
-                            : "${svc}:${params.ENVIRONMENT}-latest"
-
-                        powershell "kubectl set image deployment/${svc} ${svc}=${imageTag} -n ${namespace}"
-                        powershell "kubectl rollout status deployment/${svc} -n ${namespace} --timeout=300s"
+                        def imageTag = env.ENV == 'prod' ? "${svc}:${env.ENV}-${env.BUILD_NUMBER}" : "${svc}:${env.ENV}-latest"
+                        powershell "kubectl set image deployment/${svc} ${svc}=${imageTag} -n $env:NAMESPACE"
+                        powershell "kubectl rollout status deployment/${svc} -n $env:NAMESPACE --timeout=300s"
                     }
                 }
             }
@@ -198,15 +160,13 @@ pipeline {
         stage('Post-Deploy Validation') {
             steps {
                 script {
-                    def namespace = params.ENVIRONMENT
-                    echo "Validating deployment in ${namespace} environment..."
+                    echo "Validating deployment in ${env.ENV} environment..."
+                    powershell "kubectl get pods -n $env:NAMESPACE"
+                    powershell "kubectl get services -n $env:NAMESPACE"
 
-                    powershell "kubectl get pods -n ${namespace}"
-                    powershell "kubectl get services -n ${namespace}"
-
-                    if (params.ENVIRONMENT == 'prod') {
+                    if (env.ENV == 'prod') {
                         echo "Running production smoke tests..."
-                        // Aquí irían smoke tests críticos
+                        // Add smoke tests here
                     }
                 }
             }
@@ -215,25 +175,56 @@ pipeline {
 
     post {
         always {
-            script {
-                echo "Pipeline completed for environment: ${params.ENVIRONMENT}"
-            }
+            echo "Pipeline completed for environment: ${env.ENV}"
         }
         failure {
             script {
-                if (params.ENVIRONMENT == 'prod') {
+                if (env.ENV == 'prod') {
                     echo "🚨 PRODUCTION DEPLOYMENT FAILED - Alert operations team!"
-                    // Aquí podrías agregar alertas o integraciones
+                    // Add notifications
                 }
             }
         }
         success {
             script {
-                echo "✅ Successfully deployed to ${params.ENVIRONMENT} environment"
-                if (params.ENVIRONMENT == 'prod') {
+                echo "✅ Successfully deployed to ${env.ENV} environment"
+                if (env.ENV == 'prod') {
                     echo "🎉 Production deployment successful!"
                 }
             }
         }
     }
+}
+
+// Función helper para obtener lista de servicios
+def getServicesList() {
+    return [
+        'service-discovery',
+        'cloud-config',
+        'api-gateway',
+        'proxy-client',
+        'order-service',
+        'product-service',
+        'user-service',
+        'shipping-service'
+        // 'payment-service',
+        // 'favourite-service'
+    ]
+}
+
+// Función helper para servicios de deployment
+def getDeploymentServicesList() {
+    return [
+        'zipkin',
+        'service-discovery',
+        'cloud-config',
+        'api-gateway',
+        'proxy-client',
+        'order-service',
+        'product-service',
+        'user-service',
+        'shipping-service'
+        // 'payment-service',
+        // 'favourite-service'
+    ]
 }
