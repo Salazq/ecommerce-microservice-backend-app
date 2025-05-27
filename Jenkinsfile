@@ -88,19 +88,6 @@ pipeline {
             }
         }
 
-        stage('Verify Docker Hub Images') {
-            steps {
-                script {
-                    echo "🔍 Verifying images are available on Docker Hub..."
-                    def services = getServicesList()
-                    for (svc in services) {
-                        bat "docker manifest inspect salazq/${svc}:latest > nul"
-                        echo "✅ Image salazq/${svc}:latest is available on Docker Hub"
-                    }
-                }
-            }
-        }
-
         stage('Pull Images from Docker Hub') {
             steps {
                 script {
