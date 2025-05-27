@@ -25,10 +25,11 @@ pipeline {
                     echo "Namespace: ${NAMESPACE}"
                     if (ENV == 'prod') {
                         echo "⚠️  PRODUCTION DEPLOYMENT - Extra validations will be performed"
-                    }
-                }
+                    }                }
             }
-        }        stage('Start Minikube if needed') {
+        }
+
+        stage('Start Minikube if needed') {
             steps {
                 bat """
                 minikube status -p %MINIKUBE_PROFILE% | findstr /C:"host: Running" >nul
@@ -59,7 +60,9 @@ pipeline {
                     switch (ENV) {
                         case 'dev':
                             echo "🚀 DEV Environment: Skipping all tests for faster deployment"
-                            break                        case 'stage':
+                            break
+
+                        case 'stage':
                             echo "🧪 STAGE Environment: Running unit and integration tests"
 
                             parallel(
@@ -74,17 +77,19 @@ pipeline {
                                     dir('user-service') {
                                         bat "mvnw.cmd test -Dtest=*ResourceIntegrationTest"
                                     }
-                                }
-                            )
-                            break                        case 'prod':
+                                }                            )
+                            break
+
+                        case 'prod':
                             echo "🎯 PROD Environment: E2E tests will run after deployment"
                             break
                         default:
                             error("Unknown environment: ${ENV}")
-                    }
-                }
+                    }                }
             }
-        }        stage('Deploy to Minikube') {
+        }
+
+        stage('Deploy to Minikube') {
             steps {
                 script {
                     echo "Deploying to default namespace in Minikube..."
