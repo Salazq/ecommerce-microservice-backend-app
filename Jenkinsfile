@@ -116,13 +116,13 @@ pipeline {
 
                     // Esperar un poco para que los servicios se estabilicen
                     echo "Waiting for services to stabilize..."
-                    sleep(time: 200, unit: 'SECONDS')
+                    sleep(time: 420, unit: 'SECONDS')
 
                     echo "🌐 Starting kubectl port-forward for Eureka in background..."
 
                     // Iniciar port-forward como proceso en segundo plano
                     def portForwardCmd = """
-                        powershell -Command "Start-Process -WindowStyle Hidden powershell -ArgumentList 'kubectl port-forward service/service-discovery 8761:8761' -PassThru | Select-Object -ExpandProperty Id > portforward.pid"
+                        powershell -Command "Start-Process -WindowStyle Hidden powershell -ArgumentList 'kubectl port-forward service/proxy-client 8080:8080' -PassThru | Select-Object -ExpandProperty Id > portforward.pid"
                     """
                     bat portForwardCmd
 
