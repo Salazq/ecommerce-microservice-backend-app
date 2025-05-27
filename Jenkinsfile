@@ -88,28 +88,6 @@ pipeline {
             }
         }
 
-        stage('Pull Images from Docker Hub') {
-            steps {
-                script {
-                    echo "📦 Pulling images from Docker Hub..."
-                    def services = getServicesList()
-                    for (svc in services) {
-                        echo "Pulling salazq/${svc}:latest from Docker Hub"
-                        bat "docker pull salazq/${svc}:latest"
-                        
-                        // Tag for Minikube environment
-                        bat "docker tag salazq/${svc}:latest ${svc}:${ENV}-latest"
-                        bat "minikube image load ${svc}:${ENV}-latest -p %MINIKUBE_PROFILE%"
-                          if (ENV == 'prod') {
-                            def version = env.BUILD_NUMBER ?: 'latest'
-                            bat "docker tag salazq/${svc}:latest ${svc}:${ENV}-${version}"
-                            bat "minikube image load ${svc}:${ENV}-${version} -p %MINIKUBE_PROFILE%"
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Deploy to Minikube') {
             steps {
                 script {
