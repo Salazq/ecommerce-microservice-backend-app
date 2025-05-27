@@ -1,0 +1,5 @@
+# Ignorar reportes de Locust
+reports/
+*.log
+__pycache__/
+*.pyc

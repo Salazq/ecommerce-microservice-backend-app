@@ -104,9 +104,7 @@ pipeline {
                 }
             }
         }        
-        
-  
-        stage('Run E2E with Forwarding') {
+              stage('Run E2E with Forwarding') {
             when {
                 expression { return ENV == 'stage' || ENV == 'prod' }
             }
@@ -129,6 +127,36 @@ pipeline {
                         powershell -ExecutionPolicy Bypass -File run-all-tests.ps1
                         echo done > done.flag
                         '''
+                    }
+                }
+            }
+        }
+
+        stage('Load Testing with Forwarding') {
+            when {
+                expression { return ENV == 'stage' || ENV == 'prod' }
+            }
+            parallel {
+                stage('Port Forward for Load Testing') {
+                    steps {
+                        echo "📡 Starting kubectl port-forward for load testing..."
+                        bat 'powershell -ExecutionPolicy Bypass -File forward.ps1'
+                    }
+                }
+
+                stage('Locust Load Tests') {
+                    steps {
+                        echo "⏳ Waiting for port-forward to be ready..."
+                        sleep(time: 10, unit: 'SECONDS')
+
+                        echo "🚀 Running Locust load tests..."
+                        bat '''
+                        powershell -ExecutionPolicy Bypass -File run-locust.ps1
+                        echo done > done.flag
+                        '''
+
+                        echo "📊 Load test completed - archiving results..."
+                        archiveArtifacts artifacts: 'load-testing/load_test_report_*.csv', allowEmptyArchive: true
                     }
                 }
             }
