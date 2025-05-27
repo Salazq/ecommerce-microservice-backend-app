@@ -35,7 +35,7 @@ pipeline {
                 minikube status -p %MINIKUBE_PROFILE% | findstr /C:"host: Running" >nul
                 if %ERRORLEVEL% NEQ 0 (
                     echo Minikube no está iniciado para el profile %MINIKUBE_PROFILE%. Iniciando...
-                    minikube start -p %MINIKUBE_PROFILE% --cpus=6 --memory=3800
+                    minikube start -p %MINIKUBE_PROFILE% --cpus=5 --memory=3800
                 ) else (
                     echo Minikube ya está corriendo para el profile %MINIKUBE_PROFILE%.
                 )
@@ -101,6 +101,45 @@ pipeline {
                         bat "kubectl apply -f k8s/${svc}-deployment.yaml -n %NAMESPACE%"
                         bat "kubectl apply -f k8s/${svc}-service.yaml -n %NAMESPACE%"
                    }
+                }
+            }
+        }        
+        
+        stage('Setup Port-Forward') {
+            when {
+                expression { return ENV == 'dev' || ENV == 'stage' }
+            }
+            steps {
+                script {
+                    echo "🔗 Setting up port-forward for local access..."
+                    
+                    // Terminar cualquier port-forward existente
+                    bat """
+                    taskkill /F /IM kubectl.exe 2>nul || echo No previous kubectl processes found
+                    timeout /t 2 /nobreak >nul
+                    """
+                    
+                    // Esperar a que los pods estén listos
+                    echo "Waiting for pods to be ready..."
+                    bat """
+                    kubectl wait --for=condition=ready pod -l app=service-discovery -n %NAMESPACE% --timeout=120s
+                    kubectl wait --for=condition=ready pod -l app=api-gateway -n %NAMESPACE% --timeout=120s
+                    """
+                    
+                    // Iniciar port-forwards en background
+                    echo "Starting port-forwards..."
+                    bat """
+                    start /B cmd /c "kubectl port-forward service/service-discovery 8761:8761 -n %NAMESPACE% > nul 2>&1"
+                    start /B cmd /c "kubectl port-forward service/api-gateway 8080:8080 -n %NAMESPACE% > nul 2>&1"
+                    """
+                    
+                    // Esperar un momento para que se establezcan
+                    sleep(time: 5, unit: 'SECONDS')
+                    
+                    echo "✅ Port-forwards configured:"
+                    echo "🔗 Service Discovery (Eureka): http://localhost:8761"
+                    echo "🔗 API Gateway: http://localhost:8080"
+                    echo "📝 To stop port-forwards: taskkill /F /IM kubectl.exe"
                 }
             }
         }
