@@ -15,7 +15,8 @@ spec:
       initContainers:
       - name: wait-for-zipkin
         image: curlimages/curl:7.85.0
-        command: ['sh', '-c', 'until curl -f http://zipkin:9411/; do echo waiting for zipkin; sleep 5; done']      - name: wait-for-service-discovery
+        command: ['sh', '-c', 'until curl -f http://zipkin:9411/; do echo waiting for zipkin; sleep 5; done']      
+      - name: wait-for-service-discovery
         image: curlimages/curl:7.85.0
         command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
       containers:
