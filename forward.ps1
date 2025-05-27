@@ -3,7 +3,7 @@ Remove-Item done.flag -ErrorAction SilentlyContinue
 
 # --- Iniciar el port-forward ---
 Write-Host "Starting kubectl port-forward for proxy-client (8080)..."
-$proc1 = Start-Process -NoNewWindow -PassThru kubectl -ArgumentList 'port-forward', 'service/proxy-client', '8080:8080'
+$proc1 = Start-Process -NoNewWindow -PassThru kubectl -ArgumentList 'port-forward', 'service/api-gateway', '8080:8080'
 
 # --- Verificar que el proceso inició correctamente ---
 Start-Sleep -Seconds 3
