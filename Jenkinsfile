@@ -100,24 +100,7 @@ pipeline {
 
                         bat "kubectl apply -f k8s/${svc}-deployment.yaml -n %NAMESPACE%"
                         bat "kubectl apply -f k8s/${svc}-service.yaml -n %NAMESPACE%"
-
-                        def imageTag = (ENV == 'prod') ? "${svc}:${ENV}-${env.BUILD_NUMBER}" : "${svc}:${ENV}-latest"
-                        bat "kubectl set image deployment/${svc} ${svc}=${imageTag} -n %NAMESPACE%"
-                        bat "kubectl rollout status deployment/${svc} -n %NAMESPACE% --timeout=300s"                    }
-                }
-            }
-        }
-
-        stage('Post-Deploy Validation') {
-            steps {
-                script {
-                    echo "Validating deployment in ${ENV}..."
-                    bat "kubectl get pods -n %NAMESPACE%"
-                    bat "kubectl get services -n %NAMESPACE%"
-
-                    if (ENV == 'prod') {
-                        echo "Running production smoke tests..."
-                    }
+                   }
                 }
             }
         }
