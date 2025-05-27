@@ -113,8 +113,7 @@ pipeline {
                         // Tag for Minikube environment
                         bat "docker tag salazq/${svc}:latest ${svc}:${ENV}-latest"
                         bat "minikube image load ${svc}:${ENV}-latest -p %MINIKUBE_PROFILE%"
-                        
-                        if (ENV == 'prod') {
+                          if (ENV == 'prod') {
                             def version = env.BUILD_NUMBER ?: 'latest'
                             bat "docker tag salazq/${svc}:latest ${svc}:${ENV}-${version}"
                             bat "minikube image load ${svc}:${ENV}-${version} -p %MINIKUBE_PROFILE%"
@@ -138,11 +137,12 @@ pipeline {
 
                         def imageTag = (ENV == 'prod') ? "${svc}:${ENV}-${env.BUILD_NUMBER}" : "${svc}:${ENV}-latest"
                         bat "kubectl set image deployment/${svc} ${svc}=${imageTag} -n %NAMESPACE%"
-                        bat "kubectl rollout status deployment/${svc} -n %NAMESPACE% --timeout=300s"
-                    }
+                        bat "kubectl rollout status deployment/${svc} -n %NAMESPACE% --timeout=300s"                    }
                 }
             }
-        }        stage('Post-Deploy Validation') {
+        }
+
+        stage('Post-Deploy Validation') {
             steps {
                 script {
                     echo "Validating deployment in ${ENV}..."
