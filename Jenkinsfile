@@ -114,30 +114,14 @@ pipeline {
                 stage('Port Forward') {
                     steps {
                         echo "📡 Starting kubectl port-forward in loop until tests are done..."
-                        bat '''
-                        powershell -Command "
-                        Remove-Item done.flag -ErrorAction SilentlyContinue;
-                        while (-not (Test-Path done.flag)) {
-                            Write-Host '🔁 Starting kubectl port-forward...';
-                            $proc = Start-Process -NoNewWindow -PassThru kubectl -ArgumentList 'port-forward', 'service/proxy-client', '8080:8080';
-                            while (-not (Test-Path done.flag) -and !$proc.HasExited) {
-                                Start-Sleep -Seconds 2
-                            }
-                            if (-not $proc.HasExited) {
-                                Write-Host '🛑 Stopping port-forward...';
-                                Stop-Process -Id $proc.Id -Force
-                            }
-                        }
-                        Write-Host '✅ Port forwarding finished';
-                        "
-                        '''
+                        bat 'powershell -ExecutionPolicy Bypass -File forward.ps1'
                     }
                 }
 
                 stage('E2E Tests') {
                     steps {
                         echo "⏳ Waiting a bit for port-forward to initialize..."
-                        sleep(time: 10, unit: 'SECONDS')
+                        sleep(time: 400, unit: 'SECONDS')
 
                         echo "🎯 Running E2E tests..."
                         bat '''
