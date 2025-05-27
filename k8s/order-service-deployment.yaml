@@ -19,9 +19,9 @@ spec:
       - name: wait-for-service-discovery
         image: curlimages/curl:7.85.0
         command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
-      - name: wait-for-proxy-client
-        image: curlimages/curl:7.85.0
-        command: ['sh', '-c', 'until curl -f http://proxy-client:8900/app/actuator/health; do echo waiting for proxy-client; sleep 5; done']      
+      # - name: wait-for-proxy-client
+      #   image: curlimages/curl:7.85.0
+      #   command: ['sh', '-c', 'until curl -f http://proxy-client:8900/app/actuator/health; do echo waiting for proxy-client; sleep 5; done']
       containers:
       - name: order-service
         image: salazq/order-service:latest

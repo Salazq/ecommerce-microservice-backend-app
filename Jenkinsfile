@@ -113,16 +113,32 @@ pipeline {
             steps {
                 script {
                     echo "🎯 Running E2E tests after services are deployed..."
-                    
+
                     // Esperar un poco para que los servicios se estabilicen
                     echo "Waiting for services to stabilize..."
-                    sleep(time: 30, unit: 'SECONDS')
-                    
-                    // Ejecutar tests E2E usando el script PowerShell
-                    echo "Running E2E tests using run-all-tests.ps1..."
-                    bat """
-                    powershell -ExecutionPolicy Bypass -File run-all-tests.ps1
+                    sleep(time: 200, unit: 'SECONDS')
+
+                    echo "🌐 Starting kubectl port-forward for Eureka in background..."
+
+                    // Iniciar port-forward como proceso en segundo plano
+                    def portForwardCmd = """
+                        powershell -Command "Start-Process -WindowStyle Hidden powershell -ArgumentList 'kubectl port-forward service/service-discovery 8761:8761' -PassThru | Select-Object -ExpandProperty Id > portforward.pid"
                     """
+                    bat portForwardCmd
+
+                    // Esperar a que el túnel esté disponible
+                    sleep(time: 5, unit: 'SECONDS')
+
+                    // Ejecutar los tests E2E
+                    echo "🧪 Running E2E tests using run-all-tests.ps1..."
+                    bat 'powershell -ExecutionPolicy Bypass -File run-all-tests.ps1'
+
+                    // Finalizar el túnel (leer el PID y matarlo)
+                    echo "🛑 Killing port-forward process..."
+                    bat 'for /f %%i in (portforward.pid) do taskkill /PID %%i /F'
+
+                    // Limpiar archivo temporal
+                    bat 'del portforward.pid'
                 }
             }
         }

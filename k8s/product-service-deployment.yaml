@@ -19,9 +19,9 @@ spec:
       - name: wait-for-service-discovery
         image: curlimages/curl:7.85.0
         command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
-      - name: wait-for-order-service
-        image: curlimages/curl:7.85.0
-        command: ['sh', '-c', 'until curl -f http://order-service:8300/order-service/actuator/health; do echo waiting for order-service; sleep 5; done']     
+      # - name: wait-for-order-service
+      #   image: curlimages/curl:7.85.0
+      #   command: ['sh', '-c', 'until curl -f http://order-service:8300/order-service/actuator/health; do echo waiting for order-service; sleep 5; done']
       containers:
       - name: product-service
         image: salazq/product-service:latest
