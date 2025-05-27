@@ -21,11 +21,11 @@ spec:
         command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
       - name: wait-for-proxy-client
         image: curlimages/curl:7.85.0
-        command: ['sh', '-c', 'until curl -f http://proxy-client:8900/app/actuator/health; do echo waiting for proxy-client; sleep 5; done']
+        command: ['sh', '-c', 'until curl -f http://proxy-client:8900/app/actuator/health; do echo waiting for proxy-client; sleep 5; done']      
       containers:
       - name: order-service
-        image: order-service:latest
-        imagePullPolicy: Never
+        image: salazq/order-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8300        
         env:

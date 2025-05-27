@@ -1,3 +1,5 @@
+// Jenkins Pipeline para eCommerce Microservices
+// Configurado para usar imágenes pre-construidas de Docker Hub (salazq/*)
 // Forzar parámetros visibles para Jenkins
 properties([
     parameters([
@@ -107,8 +109,7 @@ pipeline {
                                     bat "newman run ${collection.name} --env-var spring_profiles_active=prod"
                                 }
                             }
-                            break
-
+                            break                        
                         default:
                             error("Unknown environment: ${ENV}")
                     }
@@ -116,17 +117,36 @@ pipeline {
             }
         }
 
-        stage('Build Images') {
+        stage('Verify Docker Hub Images') {
             steps {
                 script {
+                    echo "🔍 Verifying images are available on Docker Hub..."
                     def services = getServicesList()
                     for (svc in services) {
-                        dir(svc) {
-                            bat "minikube image build -p %MINIKUBE_PROFILE% -t ${svc}:${ENV}-latest ."
-                            if (ENV == 'prod') {
-                                def version = env.BUILD_NUMBER ?: 'latest'
-                                bat "minikube image build -p %MINIKUBE_PROFILE% -t ${svc}:${ENV}-${version} ."
-                            }
+                        bat "docker manifest inspect salazq/${svc}:latest > nul"
+                        echo "✅ Image salazq/${svc}:latest is available on Docker Hub"
+                    }
+                }
+            }
+        }
+
+        stage('Pull Images from Docker Hub') {
+            steps {
+                script {
+                    echo "📦 Pulling images from Docker Hub..."
+                    def services = getServicesList()
+                    for (svc in services) {
+                        echo "Pulling salazq/${svc}:latest from Docker Hub"
+                        bat "docker pull salazq/${svc}:latest"
+                        
+                        // Tag for Minikube environment
+                        bat "docker tag salazq/${svc}:latest ${svc}:${ENV}-latest"
+                        bat "minikube image load ${svc}:${ENV}-latest -p %MINIKUBE_PROFILE%"
+                        
+                        if (ENV == 'prod') {
+                            def version = env.BUILD_NUMBER ?: 'latest'
+                            bat "docker tag salazq/${svc}:latest ${svc}:${ENV}-${version}"
+                            bat "minikube image load ${svc}:${ENV}-${version} -p %MINIKUBE_PROFILE%"
                         }
                     }
                 }
@@ -140,6 +160,8 @@ pipeline {
 
                     def services = getDeploymentServicesList()
                     for (svc in services) {
+                        bat "kubectl delete pods -l app=${svc} -n %NAMESPACE% --ignore-not-found"
+
                         bat "kubectl apply -f k8s/${svc}-deployment.yaml -n %NAMESPACE%"
                         bat "kubectl apply -f k8s/${svc}-service.yaml -n %NAMESPACE%"
 
@@ -200,7 +222,9 @@ def getServicesList() {
         'order-service',
         'product-service',
         'user-service',
-        'shipping-service'
+        'shipping-service'/*,
+        'payment-service',
+        'favourite-service' */
     ]
 }
 
@@ -214,6 +238,8 @@ def getDeploymentServicesList() {
         'order-service',
         'product-service',
         'user-service',
-        'shipping-service'
+        'shipping-service'/*,
+        'payment-service',
+        'favourite-service'*/
     ]
 }

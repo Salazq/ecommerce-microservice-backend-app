@@ -21,11 +21,11 @@ spec:
         command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
       - name: wait-for-shipping-service
         image: curlimages/curl:7.85.0
-        command: ['sh', '-c', 'until curl -f http://shipping-service:8600/shipping-service/actuator/health; do echo waiting for shipping-service; sleep 5; done']
+        command: ['sh', '-c', 'until curl -f http://shipping-service:8600/shipping-service/actuator/health; do echo waiting for shipping-service; sleep 5; done']      
       containers:
       - name: payment-service
-        image: payment-service:latest
-        imagePullPolicy: Never
+        image: salazq/payment-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8400        
         env:

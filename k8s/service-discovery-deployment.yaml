@@ -15,11 +15,11 @@ spec:
       initContainers:
       - name: wait-for-zipkin
         image: curlimages/curl:7.85.0
-        command: ['sh', '-c', 'until curl -f http://zipkin:9411/; do echo waiting for zipkin; sleep 5; done']
+        command: ['sh', '-c', 'until curl -f http://zipkin:9411/; do echo waiting for zipkin; sleep 5; done']      
       containers:
       - name: service-discovery
-        image: service-discovery:latest
-        imagePullPolicy: Never
+        image: salazq/service-discovery:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8761        
         env:

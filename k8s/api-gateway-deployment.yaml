@@ -18,11 +18,11 @@ spec:
         command: ['sh', '-c', 'until curl -f http://cloud-config:9296/actuator/health; do echo waiting for cloud-config; sleep 5; done']
       - name: wait-for-service-discovery
         image: curlimages/curl:7.85.0
-        command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
+        command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']      
       containers:
       - name: api-gateway
-        image: api-gateway:latest
-        imagePullPolicy: Never
+        image: salazq/api-gateway:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080        
         env:
