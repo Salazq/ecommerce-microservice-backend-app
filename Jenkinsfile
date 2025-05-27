@@ -106,39 +106,45 @@ pipeline {
         }        
         
   
-        stage('E2E Tests') {
+        stage('Run E2E with Forwarding') {
             when {
                 expression { return ENV == 'stage' || ENV == 'prod' }
             }
-            steps {
-                script {
-                    echo "🎯 Running E2E tests after services are deployed..."
+            parallel {
+                stage('Port Forward') {
+                    steps {
+                        echo "📡 Starting kubectl port-forward in loop until tests are done..."
+                        bat '''
+                        powershell -Command "
+                        Remove-Item done.flag -ErrorAction SilentlyContinue;
+                        while (-not (Test-Path done.flag)) {
+                            Write-Host '🔁 Starting kubectl port-forward...';
+                            $proc = Start-Process -NoNewWindow -PassThru kubectl -ArgumentList 'port-forward', 'service/proxy-client', '8080:8080';
+                            while (-not (Test-Path done.flag) -and !$proc.HasExited) {
+                                Start-Sleep -Seconds 2
+                            }
+                            if (-not $proc.HasExited) {
+                                Write-Host '🛑 Stopping port-forward...';
+                                Stop-Process -Id $proc.Id -Force
+                            }
+                        }
+                        Write-Host '✅ Port forwarding finished';
+                        "
+                        '''
+                    }
+                }
 
-                    // Esperar un poco para que los servicios se estabilicen
-                    echo "Waiting for services to stabilize..."
-                    sleep(time: 420, unit: 'SECONDS')
+                stage('E2E Tests') {
+                    steps {
+                        echo "⏳ Waiting a bit for port-forward to initialize..."
+                        sleep(time: 10, unit: 'SECONDS')
 
-                    echo "🌐 Starting kubectl port-forward for Eureka in background..."
-
-                    // Iniciar port-forward como proceso en segundo plano
-                    def portForwardCmd = """
-                        powershell -Command "Start-Process -WindowStyle Hidden powershell -ArgumentList 'kubectl port-forward service/proxy-client 8080:8080' -PassThru | Select-Object -ExpandProperty Id > portforward.pid"
-                    """
-                    bat portForwardCmd
-
-                    // Esperar a que el túnel esté disponible
-                    sleep(time: 5, unit: 'SECONDS')
-
-                    // Ejecutar los tests E2E
-                    echo "🧪 Running E2E tests using run-all-tests.ps1..."
-                    bat 'powershell -ExecutionPolicy Bypass -File run-all-tests.ps1'
-
-                    // Finalizar el túnel (leer el PID y matarlo)
-                    echo "🛑 Killing port-forward process..."
-                    bat 'for /f %%i in (portforward.pid) do taskkill /PID %%i /F'
-
-                    // Limpiar archivo temporal
-                    bat 'del portforward.pid'
+                        echo "🎯 Running E2E tests..."
+                        bat '''
+                        powershell -ExecutionPolicy Bypass -File run-all-tests.ps1
+                        echo done > done.flag
+                        '''
+                    }
                 }
             }
         }
