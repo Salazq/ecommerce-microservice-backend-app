@@ -9,7 +9,9 @@ properties([
 ])
 
 pipeline {
-    agent any    environment {
+    agent any    
+    
+    environment {
         ENV = "${params.ENVIRONMENT}"
         MINIKUBE_PROFILE = "minikube"
         NAMESPACE = "default"
