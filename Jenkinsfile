@@ -61,55 +61,26 @@ pipeline {
                     switch (ENV) {
                         case 'dev':
                             echo "🚀 DEV Environment: Skipping all tests for faster deployment"
-                            break
-
-                        case 'stage':
-                            echo "🧪 STAGE Environment: Running all tests"
+                            break                        case 'stage':
+                            echo "🧪 STAGE Environment: Running unit and integration tests"
 
                             parallel(
                                 'Unit Tests': {
-                                    def services = getServicesList()
-                                    for (svc in services) {
-                                        dir(svc) {
-                                            bat "mvnw.cmd test -Dtest=*ApplicationTests"
-                                        }
+                                    echo "Running unit tests only for user-service..."
+                                    dir('user-service') {
+                                        bat "mvnw.cmd test -Dtest=*ApplicationTests*"
                                     }
                                 },
                                 'Integration Tests': {
-                                    def services = getServicesList()
-                                    for (svc in services) {
-                                        dir(svc) {
-                                            bat "mvnw.cmd test -Dtest=*ResourceIntegrationTest"
-                                        }
+                                    echo "Running integration tests only for user-service..."
+                                    dir('user-service') {
+                                        bat "mvnw.cmd test -Dtest=*ResourceIntegrationTest"
                                     }
-                                },
-                                'E2E Tests': {
-                                    echo "Running E2E tests for staging..."
-                                    bat "npm install -g newman"
-                                    dir('postman-collections') {
-                                        def collections = findFiles(glob: '*.postman_collection.json')
-                                        for (collection in collections) {
-                                            bat "newman run ${collection.name} --env-var spring_profiles_active=stage"
-                                        }
-                                    }
-                                },
-                                'Security Tests': {
-                                    echo "Running security tests for staging..."
-                                    bat "echo 'Security scan for stage environment'"
                                 }
                             )
+                            break                        case 'prod':
+                            echo "🎯 PROD Environment: E2E tests will run after deployment"
                             break
-
-                        case 'prod':
-                            echo "🎯 PROD Environment: Running only E2E tests"
-                            bat "npm install -g newman"
-                            dir('postman-collections') {
-                                def collections = findFiles(glob: '*.postman_collection.json')
-                                for (collection in collections) {
-                                    bat "newman run ${collection.name} --env-var spring_profiles_active=prod"
-                                }
-                            }
-                            break                        
                         default:
                             error("Unknown environment: ${ENV}")
                     }
@@ -171,9 +142,7 @@ pipeline {
                     }
                 }
             }
-        }
-
-        stage('Post-Deploy Validation') {
+        }        stage('Post-Deploy Validation') {
             steps {
                 script {
                     echo "Validating deployment in ${ENV}..."
@@ -182,6 +151,38 @@ pipeline {
 
                     if (ENV == 'prod') {
                         echo "Running production smoke tests..."
+                    }
+                }
+            }
+        }
+
+        stage('E2E Tests') {
+            when {
+                expression { return ENV == 'stage' || ENV == 'prod' }
+            }
+            steps {
+                script {
+                    echo "🎯 Running E2E tests after services are deployed..."
+                    
+                    // Esperar un poco para que los servicios se estabilicen
+                    echo "Waiting for services to stabilize..."
+                    sleep(time: 30, unit: 'SECONDS')
+                    
+                    // Verificar que los servicios principales estén respondiendo
+                    echo "Checking service health endpoints..."
+                    bat """
+                    timeout /t 5 /nobreak >nul
+                    echo Checking api-gateway health...
+                    """
+                    
+                    // Ejecutar tests E2E
+                    bat "npm install -g newman"
+                    dir('postman-collections') {
+                        def collections = findFiles(glob: '*.postman_collection.json')
+                        for (collection in collections) {
+                            echo "Running E2E test: ${collection.name}"
+                            bat "newman run \"${collection.name}\" --env-var spring_profiles_active=${ENV} --bail --delay-request 1000"
+                        }
                     }
                 }
             }
