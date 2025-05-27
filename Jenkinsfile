@@ -35,7 +35,7 @@ pipeline {
                 minikube status -p %MINIKUBE_PROFILE% | findstr /C:"host: Running" >nul
                 if %ERRORLEVEL% NEQ 0 (
                     echo Minikube no está iniciado para el profile %MINIKUBE_PROFILE%. Iniciando...
-                    minikube start -p %MINIKUBE_PROFILE% --cpus=5 --memory=3800
+                    minikube start -p %MINIKUBE_PROFILE% --cpus=6 --memory=3800
                 ) else (
                     echo Minikube ya está corriendo para el profile %MINIKUBE_PROFILE%.
                 )
@@ -112,20 +112,12 @@ pipeline {
             steps {
                 script {
                     echo "🔗 Setting up port-forward for local access..."
-                    
-                    // Terminar cualquier port-forward existente
+                      // Terminar cualquier port-forward existente
                     bat """
                     taskkill /F /IM kubectl.exe 2>nul || echo No previous kubectl processes found
-                    timeout /t 2 /nobreak >nul
+                    ping 127.0.0.1 -n 3 >nul
                     """
-                    
-                    // Esperar a que los pods estén listos
-                    echo "Waiting for pods to be ready..."
-                    bat """
-                    kubectl wait --for=condition=ready pod -l app=service-discovery -n %NAMESPACE% --timeout=120s
-                    kubectl wait --for=condition=ready pod -l app=api-gateway -n %NAMESPACE% --timeout=120s
-                    """
-                    
+
                     // Iniciar port-forwards en background
                     echo "Starting port-forwards..."
                     bat """
@@ -155,13 +147,6 @@ pipeline {
                     // Esperar un poco para que los servicios se estabilicen
                     echo "Waiting for services to stabilize..."
                     sleep(time: 30, unit: 'SECONDS')
-                    
-                    // Verificar que los servicios principales estén respondiendo
-                    echo "Checking service health endpoints..."
-                    bat """
-                    timeout /t 5 /nobreak >nul
-                    echo Checking api-gateway health...
-                    """
                     
                     // Ejecutar tests E2E
                     bat "npm install -g newman"
