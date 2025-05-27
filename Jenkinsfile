@@ -121,7 +121,7 @@ pipeline {
                 stage('E2E Tests') {
                     steps {
                         echo "⏳ Waiting a bit for port-forward to initialize..."
-                        sleep(time: 400, unit: 'SECONDS')
+                        sleep(time: 360, unit: 'SECONDS')
 
                         echo "🎯 Running E2E tests..."
                         bat '''
