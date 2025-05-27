@@ -3,10 +3,11 @@ kind: Service
 metadata:
   name: service-discovery
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: service-discovery
   ports:
     - protocol: TCP
       port: 8761
       targetPort: 8761
+      nodePort: 30761

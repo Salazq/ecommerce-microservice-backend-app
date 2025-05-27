@@ -105,37 +105,7 @@ pipeline {
             }
         }        
         
-        stage('Setup Port-Forward') {
-            when {
-                expression { return ENV == 'dev' || ENV == 'stage' }
-            }
-            steps {
-                script {
-                    echo "🔗 Setting up port-forward for local access..."
-                      // Terminar cualquier port-forward existente
-                    bat """
-                    taskkill /F /IM kubectl.exe 2>nul || echo No previous kubectl processes found
-                    ping 127.0.0.1 -n 3 >nul
-                    """
-
-                    // Iniciar port-forwards en background
-                    echo "Starting port-forwards..."
-                    bat """
-                    start /B cmd /c "kubectl port-forward service/service-discovery 8761:8761 -n %NAMESPACE% > nul 2>&1"
-                    start /B cmd /c "kubectl port-forward service/api-gateway 8080:8080 -n %NAMESPACE% > nul 2>&1"
-                    """
-                    
-                    // Esperar un momento para que se establezcan
-                    sleep(time: 5, unit: 'SECONDS')
-                    
-                    echo "✅ Port-forwards configured:"
-                    echo "🔗 Service Discovery (Eureka): http://localhost:8761"
-                    echo "🔗 API Gateway: http://localhost:8080"
-                    echo "📝 To stop port-forwards: taskkill /F /IM kubectl.exe"
-                }
-            }
-        }
-
+  
         stage('E2E Tests') {
             when {
                 expression { return ENV == 'stage' || ENV == 'prod' }
@@ -148,15 +118,11 @@ pipeline {
                     echo "Waiting for services to stabilize..."
                     sleep(time: 30, unit: 'SECONDS')
                     
-                    // Ejecutar tests E2E
-                    bat "npm install -g newman"
-                    dir('postman-collections') {
-                        def collections = findFiles(glob: '*.postman_collection.json')
-                        for (collection in collections) {
-                            echo "Running E2E test: ${collection.name}"
-                            bat "newman run \"${collection.name}\" --env-var spring_profiles_active=${ENV} --bail --delay-request 1000"
-                        }
-                    }
+                    // Ejecutar tests E2E usando el script PowerShell
+                    echo "Running E2E tests using run-all-tests.ps1..."
+                    bat """
+                    powershell -ExecutionPolicy Bypass -File run-all-tests.ps1
+                    """
                 }
             }
         }
