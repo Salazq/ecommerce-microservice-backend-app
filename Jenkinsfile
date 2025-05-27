@@ -9,12 +9,10 @@ properties([
 ])
 
 pipeline {
-    agent any
-
-    environment {
+    agent any    environment {
         ENV = "${params.ENVIRONMENT}"
-        MINIKUBE_PROFILE = "minikube-${params.ENVIRONMENT}"
-        NAMESPACE = "${params.ENVIRONMENT}"
+        MINIKUBE_PROFILE = "minikube"
+        NAMESPACE = "default"
     }
 
     stages {
@@ -28,9 +26,7 @@ pipeline {
                     }
                 }
             }
-        }
-
-        stage('Start Minikube if needed') {
+        }        stage('Start Minikube if needed') {
             steps {
                 bat """
                 minikube status -p %MINIKUBE_PROFILE% | findstr /C:"host: Running" >nul
@@ -86,12 +82,10 @@ pipeline {
                     }
                 }
             }
-        }
-
-        stage('Deploy to Minikube') {
+        }        stage('Deploy to Minikube') {
             steps {
                 script {
-                    bat "kubectl create namespace %NAMESPACE% --dry-run=client -o yaml | kubectl apply -f -"
+                    echo "Deploying to default namespace in Minikube..."
 
                     def services = getDeploymentServicesList()
                     for (svc in services) {
