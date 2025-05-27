@@ -113,6 +113,7 @@ pipeline {
             parallel {
                 stage('Port Forward') {
                     steps {
+                        sleep(time: 350, unit: 'SECONDS')
                         echo "📡 Starting kubectl port-forward in loop until tests are done..."
                         bat 'powershell -ExecutionPolicy Bypass -File forward.ps1'
                     }
