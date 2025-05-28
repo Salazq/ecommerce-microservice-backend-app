@@ -1,1 +1,6 @@
 Method,Name,Error,Occurrences
+GET,/user-service/api/users,"ConnectionRefusedError(10061, '[WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.')",7
+GET,/order-service/api/orders,"ConnectionRefusedError(10061, '[WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.')",2
+GET,/product-service/api/categories,"ConnectionRefusedError(10061, '[WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.')",2
+GET,/user-service/api/credentials,"ConnectionRefusedError(10061, '[WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.')",2
+GET,/product-service/api/products,"ConnectionRefusedError(10061, '[WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.')",4

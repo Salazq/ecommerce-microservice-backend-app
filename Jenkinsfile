@@ -134,7 +134,7 @@ pipeline {
 
         stage('Load Testing with Forwarding') {
             when {
-                expression { return ENV == 'stage' || ENV == 'prod' }
+                expression { return ENV == 'stage'}
             }
             parallel {
                 stage('Port Forward for Load Testing') {
