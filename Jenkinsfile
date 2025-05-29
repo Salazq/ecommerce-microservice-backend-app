@@ -174,13 +174,16 @@ pipeline {
         stage('Ensure Git Branch') {
             steps {
                 script {
-                    echo "🔄 Changing to master branch"
-                    bat 'git checkout master'
+                    echo "🔄 Updating and changing to master branch"
+                    bat '''
+                    git fetch origin
+                    git checkout master
+                    git pull origin master
+                    '''
                 }
             }
         }
 
-        
         stage('Generate Release Notes') {
             when {
                 expression { return ENV == 'prod' }
@@ -190,16 +193,14 @@ pipeline {
                     echo "📝 Generating release notes for production deployment..."
                     
                     try {
-                        // Comando Git compatible con Windows CMD
-                        def versionResult = bat(script: "git describe --tags --always --abbrev=0 2>nul", returnStdout: true).trim()
+                        // Obtener version usando PowerShell para mejor parsing
+                        def versionCmd = 'powershell -Command "& { $tag = git describe --tags --always --abbrev=0 2>$null; if ($tag) { $tag } else { \'v1.0.0\' } }"'
+                        env.VERSION = bat(script: versionCmd, returnStdout: true).trim()
                         
-                        if (!versionResult || versionResult.isEmpty() || versionResult.contains("fatal")) {
+                        if (!env.VERSION || env.VERSION.isEmpty()) {
                             env.VERSION = "v1.0.0"
-                            echo "⚠️ No tags found, using default version: ${env.VERSION}"
-                        } else {
-                            env.VERSION = versionResult
-                            echo "📌 Found latest version: ${env.VERSION}"
                         }
+                        echo "📌 Found latest version: ${env.VERSION}"
                         
                     } catch (Exception e) {
                         env.VERSION = "v1.0.0"
@@ -207,14 +208,16 @@ pipeline {
                     }
 
                     try {
-                        // Obtiene los commits recientes usando comandos compatibles con Windows
-                        def gitLog = bat(script: "git log --oneline -5", returnStdout: true).trim()
+                        // Obtener commits recientes usando PowerShell
+                        def gitLogCmd = 'powershell -Command "git log --oneline -5"'
+                        def gitLog = bat(script: gitLogCmd, returnStdout: true).trim()
                         if (!gitLog || gitLog.isEmpty()) {
                             gitLog = "No recent commits found"
                         }
                         
-                        // Detecta archivos modificados en los últimos commits
-                        def filesChanged = bat(script: "git diff --name-only HEAD~3..HEAD 2>nul", returnStdout: true).trim()
+                        // Obtener archivos modificados usando PowerShell
+                        def filesCmd = 'powershell -Command "git diff --name-only HEAD~3..HEAD 2>$null"'
+                        def filesChanged = bat(script: filesCmd, returnStdout: true).trim()
                         if (!filesChanged || filesChanged.isEmpty()) {
                             filesChanged = "No files changed in recent commits"
                         }
@@ -223,33 +226,31 @@ pipeline {
                         def now = new Date().format("yyyy-MM-dd HH:mm:ss")
 
                         // Release notes automático
-                        def notes = """
-                            === RELEASE NOTES ===
-                            Version: ${env.VERSION}
-                            Date: ${now}
-                            Environment: ${ENV}
-                            Namespace: ${NAMESPACE}
-                            Jenkins Build: #${env.BUILD_NUMBER}
+                        def notes = """=== RELEASE NOTES ===
+Version: ${env.VERSION}
+Date: ${now}
+Environment: ${ENV}
+Namespace: ${NAMESPACE}
+Jenkins Build: #${env.BUILD_NUMBER}
 
-                            Recent Changes:
-                            ${filesChanged}
+Recent Changes:
+${filesChanged}
 
-                            Recent Commits:
-                            ${gitLog}
+Recent Commits:
+${gitLog}
 
-                            Build Information:
-                            - Job: ${env.JOB_NAME}
-                            - Build Number: ${env.BUILD_NUMBER}
-                            - Build URL: ${env.BUILD_URL ?: 'N/A'}
-                            =======================
-                            """
+Build Information:
+- Job: ${env.JOB_NAME}
+- Build Number: ${env.BUILD_NUMBER}
+- Build URL: ${env.BUILD_URL ?: 'N/A'}
+======================="""
 
                         // Crear el directorio release-notes si no existe
                         bat 'if not exist "release-notes" mkdir "release-notes"'
                         
-                        // Generar nombre de archivo seguro (sin caracteres especiales)
+                        // Generar nombre de archivo seguro
                         def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                        def safeVersion = env.VERSION.replaceAll("[^a-zA-Z0-9.-]", "_")
+                        def safeVersion = env.VERSION.replaceAll("[^a-zA-Z0-9.-]", "")
                         def fileName = "release-notes/release-notes-${safeVersion}-${timestamp}.txt"
                         
                         writeFile file: fileName, text: notes
@@ -258,12 +259,13 @@ pipeline {
                         echo "📋 Release Notes generated:"
                         echo notes
                         
-                        // Opcional: Guardar en el repositorio Git
+                        // Opcional: Guardar en el repositorio Git con pull antes del push
                         try {
                             bat """
                             git add ${fileName}
-                            git commit -m "Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}" || echo "Nothing to commit"
-                            git push origin HEAD:master || echo "Failed to push, continuing..."
+                            git commit -m "Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}"
+                            git pull origin master --rebase
+                            git push origin HEAD:master
                             """
                             echo "✅ Release notes saved to repository: ${fileName}"
                         } catch (Exception gitError) {
@@ -274,17 +276,15 @@ pipeline {
                     } catch (Exception e) {
                         echo "⚠️ Error generating detailed release notes: ${e.message}"
                         // Generar release notes básicas como fallback
-                        def basicNotes = """
-                            === BASIC RELEASE NOTES ===
-                            Version: ${env.VERSION}
-                            Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
-                            Environment: ${ENV}
-                            Build: #${env.BUILD_NUMBER}
-                            Status: Deployment completed
-                            ============================
-                            """
+                        def basicNotes = """=== BASIC RELEASE NOTES ===
+Version: ${env.VERSION}
+Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
+Environment: ${ENV}
+Build: #${env.BUILD_NUMBER}
+Status: Deployment completed
+============================"""
                         def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                        def safeVersion = env.VERSION.replaceAll("[^a-zA-Z0-9.-]", "_")
+                        def safeVersion = env.VERSION.replaceAll("[^a-zA-Z0-9.-]", "")
                         def fileName = "release-notes/basic-release-notes-${safeVersion}-${timestamp}.txt"
                         writeFile file: fileName, text: basicNotes
                         archiveArtifacts artifacts: fileName
