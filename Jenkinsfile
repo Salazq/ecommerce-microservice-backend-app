@@ -180,7 +180,7 @@ pipeline {
             }
         }
 
-         stage('Generate Release Notes') {
+        stage('Generate Release Notes') {
             when {
                 expression { return ENV == 'prod' }
             }
@@ -223,25 +223,25 @@ pipeline {
 
                         // Release notes automático
                         def notes = """
-=== RELEASE NOTES ===
-Version: ${env.VERSION}
-Date: ${now}
-Environment: ${ENV}
-Namespace: ${NAMESPACE}
-Jenkins Build: #${env.BUILD_NUMBER}
+                            === RELEASE NOTES ===
+                            Version: ${env.VERSION}
+                            Date: ${now}
+                            Environment: ${ENV}
+                            Namespace: ${NAMESPACE}
+                            Jenkins Build: #${env.BUILD_NUMBER}
 
-Recent Changes:
-${filesChanged}
+                            Recent Changes:
+                            ${filesChanged}
 
-Recent Commits:
-${gitLog}
+                            Recent Commits:
+                            ${gitLog}
 
-Build Information:
-- Job: ${env.JOB_NAME}
-- Build Number: ${env.BUILD_NUMBER}
-- Build URL: ${env.BUILD_URL ?: 'N/A'}
-=======================
-"""
+                            Build Information:
+                            - Job: ${env.JOB_NAME}
+                            - Build Number: ${env.BUILD_NUMBER}
+                            - Build URL: ${env.BUILD_URL ?: 'N/A'}
+                            =======================
+                            """
 
                         // Crear el directorio release-notes si no existe
                         bat 'if not exist "release-notes" mkdir "release-notes"'
@@ -273,14 +273,14 @@ Build Information:
                         echo "⚠️ Error generating detailed release notes: ${e.message}"
                         // Generar release notes básicas como fallback
                         def basicNotes = """
-=== BASIC RELEASE NOTES ===
-Version: ${env.VERSION}
-Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
-Environment: ${ENV}
-Build: #${env.BUILD_NUMBER}
-Status: Deployment completed
-============================
-"""
+                            === BASIC RELEASE NOTES ===
+                            Version: ${env.VERSION}
+                            Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
+                            Environment: ${ENV}
+                            Build: #${env.BUILD_NUMBER}
+                            Status: Deployment completed
+                            ============================
+                            """
                         def timestamp = new Date().format("yyyyMMdd-HHmmss")
                         def fileName = "release-notes/basic-release-notes-${timestamp}.txt"
                         writeFile file: fileName, text: basicNotes
@@ -291,6 +291,7 @@ Status: Deployment completed
             }
         }
     }
+}
 // Helpers fuera del bloque principal
 def getServicesList() {
     return [
