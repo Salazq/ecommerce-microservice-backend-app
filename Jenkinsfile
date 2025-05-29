@@ -180,6 +180,7 @@ pipeline {
             }
         }
 
+        
         stage('Generate Release Notes') {
             when {
                 expression { return ENV == 'prod' }
@@ -189,14 +190,14 @@ pipeline {
                     echo "📝 Generating release notes for production deployment..."
                     
                     try {
-                        // Intenta obtener el último tag, si no existe usa v1.0.0
-                        def versionResult = bat(script: "git tag -l --sort=-version:refname | head -n 1", returnStdout: true).trim()
-                        env.VERSION = versionResult ?: "v1.0.0"
+                        // Comando Git compatible con Windows CMD
+                        def versionResult = bat(script: "git describe --tags --always --abbrev=0 2>nul", returnStdout: true).trim()
                         
-                        if (!env.VERSION || env.VERSION.isEmpty()) {
+                        if (!versionResult || versionResult.isEmpty() || versionResult.contains("fatal")) {
                             env.VERSION = "v1.0.0"
                             echo "⚠️ No tags found, using default version: ${env.VERSION}"
                         } else {
+                            env.VERSION = versionResult
                             echo "📌 Found latest version: ${env.VERSION}"
                         }
                         
@@ -206,14 +207,14 @@ pipeline {
                     }
 
                     try {
-                        // Obtiene los commits recientes (últimos 10)
-                        def gitLog = bat(script: "git log --oneline -10", returnStdout: true).trim()
+                        // Obtiene los commits recientes usando comandos compatibles con Windows
+                        def gitLog = bat(script: "git log --oneline -5", returnStdout: true).trim()
                         if (!gitLog || gitLog.isEmpty()) {
                             gitLog = "No recent commits found"
                         }
                         
                         // Detecta archivos modificados en los últimos commits
-                        def filesChanged = bat(script: "git diff --name-only HEAD~5..HEAD", returnStdout: true).trim()
+                        def filesChanged = bat(script: "git diff --name-only HEAD~3..HEAD 2>nul", returnStdout: true).trim()
                         if (!filesChanged || filesChanged.isEmpty()) {
                             filesChanged = "No files changed in recent commits"
                         }
@@ -246,9 +247,10 @@ pipeline {
                         // Crear el directorio release-notes si no existe
                         bat 'if not exist "release-notes" mkdir "release-notes"'
                         
-                        // Generar nombre único del archivo con timestamp
+                        // Generar nombre de archivo seguro (sin caracteres especiales)
                         def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                        def fileName = "release-notes/release-notes-${env.VERSION}-${timestamp}.txt"
+                        def safeVersion = env.VERSION.replaceAll("[^a-zA-Z0-9.-]", "_")
+                        def fileName = "release-notes/release-notes-${safeVersion}-${timestamp}.txt"
                         
                         writeFile file: fileName, text: notes
                         archiveArtifacts artifacts: fileName
@@ -256,11 +258,11 @@ pipeline {
                         echo "📋 Release Notes generated:"
                         echo notes
                         
-                        // Opcional: Guardar en el repositorio Git solo si queremos commitear
+                        // Opcional: Guardar en el repositorio Git
                         try {
                             bat """
                             git add ${fileName}
-                            git commit -m "📋 Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}" || echo "Nothing to commit"
+                            git commit -m "Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}" || echo "Nothing to commit"
                             git push origin HEAD:master || echo "Failed to push, continuing..."
                             """
                             echo "✅ Release notes saved to repository: ${fileName}"
@@ -282,7 +284,8 @@ pipeline {
                             ============================
                             """
                         def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                        def fileName = "release-notes/basic-release-notes-${timestamp}.txt"
+                        def safeVersion = env.VERSION.replaceAll("[^a-zA-Z0-9.-]", "_")
+                        def fileName = "release-notes/basic-release-notes-${safeVersion}-${timestamp}.txt"
                         writeFile file: fileName, text: basicNotes
                         archiveArtifacts artifacts: fileName
                         echo "📋 Basic release notes generated as fallback"
