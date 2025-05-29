@@ -169,9 +169,7 @@ pipeline {
                         archiveArtifacts artifacts: 'load-testing/load_test_report_*.csv', allowEmptyArchive: true
                     }                }
             }
-        }
-
-        stage('Ensure Git Branch') {
+        }        stage('Ensure Git Branch') {
             when {
                 expression { return ENV == 'prod' }
             }
@@ -179,6 +177,8 @@ pipeline {
                 script {
                     echo "🔄 Changing to master branch"
                     bat 'git checkout master'
+                    echo "🔄 Pulling latest changes"
+                    bat 'git pull origin master'
                 }
             }
         }
@@ -188,15 +188,16 @@ pipeline {
                 expression { return ENV == 'prod' }
             }
             steps {
-                script {                    
+                script {                      
                     echo "📝 Generating release notes for production deployment..."
-                      // Intenta obtener el último tag, si no existe usa v1.0.0 como versión inicial
-                    def lastTag = bat(script: "git describe --tags --abbrev=0 2>nul", returnStdout: true, returnStatus: true)
+                    
+                    // Intenta obtener el último tag, si no existe usa v1.0.0 como versión inicial
+                    def lastTagResult = bat(script: "git describe --tags --abbrev=0 2>nul", returnStdout: true, returnStatus: true)
                     def gitLog
                     def servicesChanged
                     
-                    if (lastTag.status == 0) {
-                        env.VERSION = lastTag.stdout.trim()
+                    if (lastTagResult.status == 0) {
+                        env.VERSION = lastTagResult.stdout.trim()
                         // Obtiene los commits desde ese tag
                         gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()
                         // Detecta carpetas/microservicios afectados desde el último tag
