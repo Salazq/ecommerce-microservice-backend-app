@@ -193,45 +193,37 @@ pipeline {
                     echo "📝 Generating release notes for production deployment..."
                     
                     try {
-                        // Obtener version usando PowerShell para mejor parsing
-                        def versionCmd = 'powershell -Command "& { $tag = git describe --tags --always --abbrev=0 2>$null; if ($tag) { $tag } else { \'v1.0.0\' } }"'
-                        env.VERSION = bat(script: versionCmd, returnStdout: true).trim()
+                        // Usar script temporal para obtener solo el resultado
+                        bat '''
+                        @echo off
+                        git describe --tags --always --abbrev=0 2>nul > temp_version.txt || echo v1.0.0 > temp_version.txt
+                        git log --oneline -3 > temp_commits.txt
+                        git diff --name-only HEAD~2..HEAD 2>nul > temp_files.txt || echo "No changes" > temp_files.txt
+                        '''
+                        
+                        // Leer los archivos temporales
+                        env.VERSION = readFile('temp_version.txt').trim()
+                        def gitLog = readFile('temp_commits.txt').trim()
+                        def filesChanged = readFile('temp_files.txt').trim()
+                        
+                        // Limpiar archivos temporales
+                        bat 'del temp_version.txt temp_commits.txt temp_files.txt 2>nul'
                         
                         if (!env.VERSION || env.VERSION.isEmpty()) {
                             env.VERSION = "v1.0.0"
                         }
-                        echo "📌 Found latest version: ${env.VERSION}"
                         
-                    } catch (Exception e) {
-                        env.VERSION = "v1.0.0"
-                        echo "⚠️ Error getting version, using default: ${env.VERSION}"
-                    }
-
-                    try {
-                        // Obtener commits recientes usando PowerShell
-                        def gitLogCmd = 'powershell -Command "git log --oneline -5"'
-                        def gitLog = bat(script: gitLogCmd, returnStdout: true).trim()
-                        if (!gitLog || gitLog.isEmpty()) {
-                            gitLog = "No recent commits found"
-                        }
-                        
-                        // Obtener archivos modificados usando PowerShell
-                        def filesCmd = 'powershell -Command "git diff --name-only HEAD~3..HEAD 2>$null"'
-                        def filesChanged = bat(script: filesCmd, returnStdout: true).trim()
-                        if (!filesChanged || filesChanged.isEmpty()) {
-                            filesChanged = "No files changed in recent commits"
-                        }
+                        echo "📌 Found version: ${env.VERSION}"
 
                         // Fecha actual
                         def now = new Date().format("yyyy-MM-dd HH:mm:ss")
 
-                        // Release notes automático
+                        // Release notes simplificado
                         def notes = """=== RELEASE NOTES ===
 Version: ${env.VERSION}
 Date: ${now}
 Environment: ${ENV}
-Namespace: ${NAMESPACE}
-Jenkins Build: #${env.BUILD_NUMBER}
+Build: #${env.BUILD_NUMBER}
 
 Recent Changes:
 ${filesChanged}
@@ -239,56 +231,52 @@ ${filesChanged}
 Recent Commits:
 ${gitLog}
 
-Build Information:
-- Job: ${env.JOB_NAME}
-- Build Number: ${env.BUILD_NUMBER}
-- Build URL: ${env.BUILD_URL ?: 'N/A'}
+Job: ${env.JOB_NAME}
+Build URL: ${env.BUILD_URL ?: 'N/A'}
 ======================="""
 
-                        // Crear el directorio release-notes si no existe
+                        // Crear directorio y archivo
                         bat 'if not exist "release-notes" mkdir "release-notes"'
                         
-                        // Generar nombre de archivo seguro
                         def timestamp = new Date().format("yyyyMMdd-HHmmss")
                         def safeVersion = env.VERSION.replaceAll("[^a-zA-Z0-9.-]", "")
-                        def fileName = "release-notes/release-notes-${safeVersion}-${timestamp}.txt"
+                        def fileName = "release-notes/release-${safeVersion}-${timestamp}.txt"
                         
                         writeFile file: fileName, text: notes
                         archiveArtifacts artifacts: fileName
                         
-                        echo "📋 Release Notes generated:"
+                        echo "📋 Release Notes:"
                         echo notes
                         
-                        // Opcional: Guardar en el repositorio Git con pull antes del push
+                        // Commit opcional (simplificado)
                         try {
                             bat """
                             git add ${fileName}
-                            git commit -m "Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}"
-                            git pull origin master --rebase
-                            git push origin HEAD:master
+                            git commit -m "Release notes ${env.VERSION} - Build #${env.BUILD_NUMBER}"
+                            git pull origin master --rebase --quiet
+                            git push origin HEAD:master --quiet
                             """
-                            echo "✅ Release notes saved to repository: ${fileName}"
+                            echo "✅ Release notes committed to repository"
                         } catch (Exception gitError) {
-                            echo "⚠️ Could not commit release notes to Git: ${gitError.message}"
-                            echo "✅ Release notes still archived as build artifact"
+                            echo "⚠️ Could not commit to Git (archived as artifact)"
                         }
                         
                     } catch (Exception e) {
-                        echo "⚠️ Error generating detailed release notes: ${e.message}"
-                        // Generar release notes básicas como fallback
-                        def basicNotes = """=== BASIC RELEASE NOTES ===
-Version: ${env.VERSION}
+                        echo "⚠️ Error generating release notes: ${e.message}"
+                        
+                        // Fallback básico
+                        def basicNotes = """=== RELEASE NOTES ===
+Version: Build-${env.BUILD_NUMBER}
 Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
 Environment: ${ENV}
-Build: #${env.BUILD_NUMBER}
 Status: Deployment completed
 ============================"""
+                        
                         def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                        def safeVersion = env.VERSION.replaceAll("[^a-zA-Z0-9.-]", "")
-                        def fileName = "release-notes/basic-release-notes-${safeVersion}-${timestamp}.txt"
+                        def fileName = "release-notes/basic-${timestamp}.txt"
                         writeFile file: fileName, text: basicNotes
                         archiveArtifacts artifacts: fileName
-                        echo "📋 Basic release notes generated as fallback"
+                        echo "📋 Basic release notes generated"
                     }
                 }
             }
