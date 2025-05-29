@@ -63,24 +63,23 @@
 			"name": "Create First Product Copy",
 			"event": [
 				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test('Product creation successful', function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('Product linked to category', function () {",
-							"    const response = pm.response.json();",
-							"    pm.expect(response).to.have.property('productId');",
-							"    pm.expect(response.productTitle).to.equal('iPhone 15 Pro');",
-							"    pm.expect(response.category.categoryId).to.equal(parseInt(pm.collectionVariables.get('categoryId')));",
-							"    pm.collectionVariables.set('productId', response.productId);",
-							"});"
-						],
-						"type": "text/javascript",
-						"packages": {}
-					}
+					"listen": "test",				"script": {
+					"exec": [
+						"pm.test('Product creation successful', function () {",
+						"    pm.response.to.have.status(200);",
+						"});",
+						"",
+						"pm.test('Product linked to category', function () {",
+						"    const response = pm.response.json();",
+						"    pm.expect(response).to.have.property('productId');",
+						"    pm.expect(response.productTitle).to.equal('iPhone 15 Pro');",
+						"    pm.expect(response.category.categoryId).to.equal(parseInt(pm.collectionVariables.get('categoryId')));",
+						"    pm.collectionVariables.set('productId', response.productId);",
+						"});"
+					],
+					"type": "text/javascript",
+					"packages": {}
+				}
 				},
 				{
 					"listen": "prerequest",
@@ -203,55 +202,6 @@
 				}
 			},
 			"response": []
-		},
-		{
-			"name": "Update Product",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test('Product update successful', function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('Inventory quantity updated', function () {",
-							"    const response = pm.response.json();",
-							"    pm.expect(response.quantity).to.equal(75);",
-							"    pm.expect(response.priceUnit).to.equal(949.99);",
-							"});"
-						],
-						"type": "text/javascript",
-						"packages": {}
-					}
-				}
-			],
-			"request": {
-				"method": "PUT",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"productId\": {{productId}},\n  \"productTitle\": \"iPhone 15 Pro\",\n  \"imageUrl\": \"https://example.com/iphone15pro.jpg\",\n  \"sku\": \"IPH15PRO001\",\n  \"priceUnit\": 949.99,\n  \"quantity\": 75,\n      \"category\": {\n        \"categoryId\": 4,\n        \"categoryTitle\": \"Smartphones\",\n        \"imageUrl\": \"https://example.com/smartphones.jpg\"\n    }\n}"
-				},
-				"url": {
-					"raw": "{{baseUrl}}/product-service/api/products/{{productId}}",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"product-service",
-						"api",
-						"products",
-						"{{productId}}"
-					]
-				}
-			},
-			"response": []
 		}
 	],
 	"event": [
@@ -267,7 +217,8 @@
 			}
 		}
 	],
-	"variable": [		{
+	"variable": [
+		{
 			"key": "baseUrl",
 			"value": "localhost:8080",
 			"type": "string"

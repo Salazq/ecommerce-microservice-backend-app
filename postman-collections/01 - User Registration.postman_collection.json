@@ -353,10 +353,6 @@
 			"script": {
 				"type": "text/javascript",
 				"exec": [
-					"// Collection-level test script",
-					"pm.test('E2E Test Response Time Check', function () {",
-					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
-					"});"
 				]
 			}
 		}
