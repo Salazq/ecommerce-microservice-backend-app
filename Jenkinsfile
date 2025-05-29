@@ -203,11 +203,13 @@ pipeline {
                     if (lastTagStatus == 0 && lastTag) {
                         env.VERSION = lastTag
                         gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short", returnStdout: true).trim()
-                        servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^$\"", returnStdout: true).trim()
+                       servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^\\$\"", returnStdout: true).trim()
+
                     } else {
                         env.VERSION = "v1.0.0-build${env.BUILD_NUMBER}"
                         gitLog = bat(script: "git log --oneline -10 --pretty=format:\"- %h %an %s (%cd)\" --date=short", returnStdout: true).trim()
-                        servicesChanged = bat(script: "dir /b /ad | findstr -v \"^\\.\" | findstr -v \"target\" | findstr -v \"__pycache__\"", returnStdout: true).trim()
+                        servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^\\$\"", returnStdout: true).trim()
+
                     }
 
                     def now = new Date().format("yyyy-MM-dd HH:mm:ss")
