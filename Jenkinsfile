@@ -114,8 +114,7 @@ pipeline {
                 }
             }
         }
-        
-        stage('Run E2E with Forwarding') {
+          stage('Run E2E with Forwarding') {
             when {
                 expression { return (ENV == 'stage' || ENV == 'prod') && !params.SKIP_TESTS && !params.SKIP_DEPLOYMENT }
             }
@@ -137,10 +136,11 @@ pipeline {
                         bat '''
                         powershell -ExecutionPolicy Bypass -File run-all-tests.ps1
                         echo done > done.flag
-                        '''                    }
+                        '''
+                    }
                 }
             }
-        }
+        }            
         
         stage('Load Testing with Forwarding') {
             when {
@@ -163,23 +163,19 @@ pipeline {
                         bat '''
                         powershell -ExecutionPolicy Bypass -File run-locust.ps1
                         echo done > done.flag
-                        '''                        echo "📊 Load test completed - archiving results..."
+                        '''
+
+                        echo "📊 Load test completed - archiving results..."
                         archiveArtifacts artifacts: 'load-testing/load_test_report_*.csv', allowEmptyArchive: true
-                    }
-                }
+                    }                }
             }
         }
-        
+
         stage('Ensure Git Branch') {
-            when {
-                expression { return ENV == 'prod' }
-            }
             steps {
                 script {
                     echo "🔄 Changing to master branch"
                     bat 'git checkout master'
-                    echo "🔄 Pulling latest changes"
-                    bat 'git pull origin master'
                 }
             }
         }
@@ -189,30 +185,32 @@ pipeline {
                 expression { return ENV == 'prod' }
             }
             steps {
-                script {                      
+                script {
                     echo "📝 Generating release notes for production deployment..."
-                    
-                    // Intenta obtener el último tag, si no existe usa v1.0.0 como versión inicial
-                    def lastTagResult = bat(script: "git describe --tags --abbrev=0 2>nul", returnStdout: true, returnStatus: true)
-                    def gitLog
-                    def servicesChanged
-                    
-                    if (lastTagResult.status == 0) {
-                        env.VERSION = lastTagResult.stdout.trim()
-                        // Obtiene los commits desde ese tag
-                        gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()
-                        // Detecta carpetas/microservicios afectados desde el último tag
-                        servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD 2>nul | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^\$\" 2>nul || echo \"No changes detected\"", returnStdout: true).trim()
-                    } else {
-                        env.VERSION = "v1.0.0-build${env.BUILD_NUMBER}"
-                        // Si no hay tags, obtiene los últimos 10 commits
-                        gitLog = bat(script: "git log --oneline -10 --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()
-                        // Detecta todas las carpetas modificadas en el repositorio
-                        servicesChanged = bat(script: "dir /b /ad 2>nul | findstr -v \"^\\.\" | findstr -v \"target\" | findstr -v \"__pycache__\" || echo \"No services detected\"", returnStdout: true).trim()
+
+                    def lastTag = ''
+                    def lastTagStatus = 1
+                    try {
+                        lastTag = bat(script: "git describe --tags --abbrev=0", returnStdout: true).trim()
+                        lastTagStatus = 0
+                    } catch (Exception e) {
+                        lastTagStatus = 1
                     }
 
-                    // Fecha actual
-                    def now = new Date().format("yyyy-MM-dd HH:mm:ss")                    // Release notes automático
+                    def gitLog = ''
+                    def servicesChanged = ''
+
+                    if (lastTagStatus == 0 && lastTag) {
+                        env.VERSION = lastTag
+                        gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short", returnStdout: true).trim()
+                        servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^$\"", returnStdout: true).trim()
+                    } else {
+                        env.VERSION = "v1.0.0-build${env.BUILD_NUMBER}"
+                        gitLog = bat(script: "git log --oneline -10 --pretty=format:\"- %h %an %s (%cd)\" --date=short", returnStdout: true).trim()
+                        servicesChanged = bat(script: "dir /b /ad | findstr -v \"^\\.\" | findstr -v \"target\" | findstr -v \"__pycache__\"", returnStdout: true).trim()
+                    }
+
+                    def now = new Date().format("yyyy-MM-dd HH:mm:ss")
                     def notes = """
                         === RELEASE NOTES ===
                         Version: ${env.VERSION}
@@ -230,29 +228,29 @@ pipeline {
                         Pipeline Job: ${env.JOB_NAME}
                         Build Number: ${env.BUILD_NUMBER}
                         =======================
-                        """                    // Crear el directorio release-notes si no existe
+                        """
+
                     bat 'if not exist "release-notes" mkdir "release-notes"'
-                    
-                    // Generar nombre único del archivo con timestamp
                     def timestamp = new Date().format("yyyyMMdd-HHmmss")
                     def fileName = "release-notes/release-notes-${env.VERSION}-${timestamp}.txt"
-                    
                     writeFile file: fileName, text: notes
                     archiveArtifacts artifacts: fileName
-                    
+
                     echo "📋 Release Notes generadas:"
                     echo notes
-                      // Guardar en el repositorio Git
+
+                    // Git commit and push (asegúrate que Jenkins tiene permisos y git está configurado)
                     bat """
                     git add ${fileName}
                     git commit -m "📋 Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}"
                     git push origin HEAD:master
                     """
-                    
+
                     echo "✅ Release notes guardadas en el repositorio: ${fileName}"
                 }
             }
         }
+
     }
 
     post {
