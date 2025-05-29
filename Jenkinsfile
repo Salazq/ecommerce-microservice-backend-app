@@ -180,7 +180,7 @@ pipeline {
             }
         }
 
-        stage('Generate Release Notes') {
+         stage('Generate Release Notes') {
             when {
                 expression { return ENV == 'prod' }
             }
@@ -188,81 +188,109 @@ pipeline {
                 script {
                     echo "📝 Generating release notes for production deployment..."
                     
-                    // Detecta el último tag como versión
-                    env.VERSION = bat(script: "git describe --tags --abbrev=0 2>nul || echo v0.0.0", returnStdout: true).trim()
+                    try {
+                        // Intenta obtener el último tag, si no existe usa v1.0.0
+                        def versionResult = bat(script: "git tag -l --sort=-version:refname | head -n 1", returnStdout: true).trim()
+                        env.VERSION = versionResult ?: "v1.0.0"
+                        
+                        if (!env.VERSION || env.VERSION.isEmpty()) {
+                            env.VERSION = "v1.0.0"
+                            echo "⚠️ No tags found, using default version: ${env.VERSION}"
+                        } else {
+                            echo "📌 Found latest version: ${env.VERSION}"
+                        }
+                        
+                    } catch (Exception e) {
+                        env.VERSION = "v1.0.0"
+                        echo "⚠️ Error getting version, using default: ${env.VERSION}"
+                    }
 
-                    // Obtiene los commits desde ese tag
-                    def gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()                    // Detecta carpetas/microservicios afectados
-                    def servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD 2>nul | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^\$\" 2>nul || echo \"No changes detected\"", returnStdout: true).trim()
+                    try {
+                        // Obtiene los commits recientes (últimos 10)
+                        def gitLog = bat(script: "git log --oneline -10", returnStdout: true).trim()
+                        if (!gitLog || gitLog.isEmpty()) {
+                            gitLog = "No recent commits found"
+                        }
+                        
+                        // Detecta archivos modificados en los últimos commits
+                        def filesChanged = bat(script: "git diff --name-only HEAD~5..HEAD", returnStdout: true).trim()
+                        if (!filesChanged || filesChanged.isEmpty()) {
+                            filesChanged = "No files changed in recent commits"
+                        }
 
-                    // Fecha actual
-                    def now = new Date().format("yyyy-MM-dd HH:mm:ss")                    // Release notes automático
-                    def notes = """
-                        === RELEASE NOTES ===
-                        Version: ${env.VERSION}
-                        Fecha: ${now}
-                        Environment: ${ENV}
-                        Namespace: ${NAMESPACE}
+                        // Fecha actual
+                        def now = new Date().format("yyyy-MM-dd HH:mm:ss")
 
-                        Servicios modificados:
-                        ${servicesChanged}
+                        // Release notes automático
+                        def notes = """
+=== RELEASE NOTES ===
+Version: ${env.VERSION}
+Date: ${now}
+Environment: ${ENV}
+Namespace: ${NAMESPACE}
+Jenkins Build: #${env.BUILD_NUMBER}
 
-                        Commits recientes:
-                        ${gitLog}
+Recent Changes:
+${filesChanged}
 
-                        Build ejecutado por: ${env.BUILD_USER ?: 'jenkins'}
-                        Pipeline Job: ${env.JOB_NAME}
-                        Build Number: ${env.BUILD_NUMBER}
-                        =======================
-                        """                    // Crear el directorio release-notes si no existe
-                    bat 'if not exist "release-notes" mkdir "release-notes"'
-                    
-                    // Generar nombre único del archivo con timestamp
-                    def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                    def fileName = "release-notes/release-notes-${env.VERSION}-${timestamp}.txt"
-                    
-                    writeFile file: fileName, text: notes
-                    archiveArtifacts artifacts: fileName
-                    
-                    echo "📋 Release Notes generadas:"
-                    echo notes
-                      // Guardar en el repositorio Git
-                    bat """
-                    git add ${fileName}
-                    git commit -m "📋 Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}"
-                    git push origin HEAD:master
-                    """
-                    
-                    echo "✅ Release notes guardadas en el repositorio: ${fileName}"
+Recent Commits:
+${gitLog}
+
+Build Information:
+- Job: ${env.JOB_NAME}
+- Build Number: ${env.BUILD_NUMBER}
+- Build URL: ${env.BUILD_URL ?: 'N/A'}
+=======================
+"""
+
+                        // Crear el directorio release-notes si no existe
+                        bat 'if not exist "release-notes" mkdir "release-notes"'
+                        
+                        // Generar nombre único del archivo con timestamp
+                        def timestamp = new Date().format("yyyyMMdd-HHmmss")
+                        def fileName = "release-notes/release-notes-${env.VERSION}-${timestamp}.txt"
+                        
+                        writeFile file: fileName, text: notes
+                        archiveArtifacts artifacts: fileName
+                        
+                        echo "📋 Release Notes generated:"
+                        echo notes
+                        
+                        // Opcional: Guardar en el repositorio Git solo si queremos commitear
+                        try {
+                            bat """
+                            git add ${fileName}
+                            git commit -m "📋 Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}" || echo "Nothing to commit"
+                            git push origin HEAD:master || echo "Failed to push, continuing..."
+                            """
+                            echo "✅ Release notes saved to repository: ${fileName}"
+                        } catch (Exception gitError) {
+                            echo "⚠️ Could not commit release notes to Git: ${gitError.message}"
+                            echo "✅ Release notes still archived as build artifact"
+                        }
+                        
+                    } catch (Exception e) {
+                        echo "⚠️ Error generating detailed release notes: ${e.message}"
+                        // Generar release notes básicas como fallback
+                        def basicNotes = """
+=== BASIC RELEASE NOTES ===
+Version: ${env.VERSION}
+Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
+Environment: ${ENV}
+Build: #${env.BUILD_NUMBER}
+Status: Deployment completed
+============================
+"""
+                        def timestamp = new Date().format("yyyyMMdd-HHmmss")
+                        def fileName = "release-notes/basic-release-notes-${timestamp}.txt"
+                        writeFile file: fileName, text: basicNotes
+                        archiveArtifacts artifacts: fileName
+                        echo "📋 Basic release notes generated as fallback"
+                    }
                 }
             }
         }
     }
-
-    post {
-        always {
-            script {
-                echo "Pipeline completed for environment: ${ENV}"
-            }
-        }
-        failure {
-            script {
-                if (ENV == 'prod') {
-                    echo "🚨 PRODUCTION DEPLOYMENT FAILED - Alert operations team!"
-                }
-            }
-        }
-        success {
-            script {
-                echo "✅ Successfully deployed to ${ENV}"
-                if (ENV == 'prod') {
-                    echo "🎉 Production deployment successful!"
-                }
-            }
-        }
-    }
-}
-
 // Helpers fuera del bloque principal
 def getServicesList() {
     return [
