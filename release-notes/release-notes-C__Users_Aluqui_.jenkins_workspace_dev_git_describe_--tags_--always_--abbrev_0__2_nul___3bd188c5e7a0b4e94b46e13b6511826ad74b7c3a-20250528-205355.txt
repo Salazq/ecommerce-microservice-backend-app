@@ -1,0 +1,27 @@
+
+                            === RELEASE NOTES ===
+                            Version: C:\Users\Aluqui\.jenkins\workspace\dev>git describe --tags --always --abbrev=0  2>nul 
+3bd188c5e7a0b4e94b46e13b6511826ad74b7c3a
+                            Date: 2025-05-28 20:53:55
+                            Environment: prod
+                            Namespace: default
+                            Jenkins Build: #79
+
+                            Recent Changes:
+                            C:\Users\Aluqui\.jenkins\workspace\dev>git diff --name-only HEAD~3..HEAD  2>nul 
+Jenkinsfile
+
+                            Recent Commits:
+                            C:\Users\Aluqui\.jenkins\workspace\dev>git log --oneline -5 
+3bd188c Fix: Release notes in jenkins 2
+b19e6dc Fix: Release notes in jenkins 1
+fd382f1 Add: Release notes ti jenkins
+5e1b744 Fix jenkinsfile 28
+e4e29f2 Fix jenkinsfile 27
+
+                            Build Information:
+                            - Job: dev
+                            - Build Number: 79
+                            - Build URL: http://localhost:8001/job/dev/79/
+                            =======================
+                            
