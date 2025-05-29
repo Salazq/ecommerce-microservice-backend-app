@@ -24,9 +24,7 @@ pipeline {
                 script {
                     echo "Deploying to environment: ${ENV}"
                     echo "Namespace: ${NAMESPACE}"
-                    if (ENV == 'prod') {
-                        echo "⚠️  PRODUCTION DEPLOYMENT - Extra validations will be performed"
-                    }                }
+                }
             }
         }
 
@@ -170,6 +168,18 @@ pipeline {
                         echo "📊 Load test completed - archiving results..."
                         archiveArtifacts artifacts: 'load-testing/load_test_report_*.csv', allowEmptyArchive: true
                     }                }
+            }
+        }
+
+        stage('Ensure Git Branch') {
+            when {
+                expression { return ENV == 'prod' }
+            }
+            steps {
+                script {
+                    echo "🔄 Changing to master branch"
+                    bat 'git checkout master'
+                }
             }
         }
 
