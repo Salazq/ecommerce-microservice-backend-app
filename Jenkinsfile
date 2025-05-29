@@ -4,7 +4,8 @@
 properties([
     parameters([
         choice(name: 'ENVIRONMENT', choices: ['dev', 'stage', 'prod'], description: 'Environment to deploy'),
-        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution'),
+        booleanParam(name: 'SKIP_DEPLOYMENT', defaultValue: false, description: 'Skip deployment to Minikube')
     ])
 ])
 
@@ -29,27 +30,7 @@ pipeline {
             }
         }
 
-        stage('Start Minikube if needed') {
-            steps {
-                bat """
-                minikube status -p %MINIKUBE_PROFILE% | findstr /C:"host: Running" >nul
-                if %ERRORLEVEL% NEQ 0 (
-                    echo Minikube no está iniciado para el profile %MINIKUBE_PROFILE%. Iniciando...
-                    minikube start -p %MINIKUBE_PROFILE% --cpus=6 --memory=3800
-                ) else (
-                    echo Minikube ya está corriendo para el profile %MINIKUBE_PROFILE%.
-                )
-                """
-            }
-        }
-
-        stage('Set Docker to Minikube Env') {
-            steps {
-                bat """
-                for /f "delims=" %%i in ('minikube -p %MINIKUBE_PROFILE% docker-env --shell cmd') do call %%i
-                """
-            }
-        }
+       
 
         stage('Run Tests') {
             when {
@@ -87,9 +68,40 @@ pipeline {
                             error("Unknown environment: ${ENV}")
                     }                }
             }
-        }
-
+        }        
+        
+        stage('Start Minikube if needed') {
+            when {
+                expression { return !params.SKIP_DEPLOYMENT }
+            }
+            steps {
+                bat """
+                minikube status -p %MINIKUBE_PROFILE% | findstr /C:"host: Running" >nul
+                if %ERRORLEVEL% NEQ 0 (
+                    echo Minikube no está iniciado para el profile %MINIKUBE_PROFILE%. Iniciando...
+                    minikube start -p %MINIKUBE_PROFILE% --cpus=6 --memory=3800
+                ) else (
+                    echo Minikube ya está corriendo para el profile %MINIKUBE_PROFILE%.
+                )
+                """
+            }
+        }   
+        
+        stage('Set Docker to Minikube Env') {
+            when {
+                expression { return !params.SKIP_DEPLOYMENT }
+            }
+            steps {
+                bat """
+                for /f "delims=" %%i in ('minikube -p %MINIKUBE_PROFILE% docker-env --shell cmd') do call %%i
+                """
+            }
+        }        
+        
         stage('Deploy to Minikube') {
+            when {
+                expression { return !params.SKIP_DEPLOYMENT }
+            }
             steps {
                 script {
                     echo "Deploying to default namespace in Minikube..."
@@ -103,10 +115,10 @@ pipeline {
                    }
                 }
             }
-        }        
-              stage('Run E2E with Forwarding') {
+        }
+          stage('Run E2E with Forwarding') {
             when {
-                expression { return ENV == 'stage' || ENV == 'prod' }
+                expression { return (ENV == 'stage' || ENV == 'prod') && !params.SKIP_TESTS && !params.SKIP_DEPLOYMENT }
             }
             parallel {
                 stage('Port Forward') {
@@ -130,11 +142,11 @@ pipeline {
                     }
                 }
             }
-        }
-
+        }            
+        
         stage('Load Testing with Forwarding') {
             when {
-                expression { return ENV == 'stage'}
+                expression { return ENV == 'stage' && !params.SKIP_TESTS && !params.SKIP_DEPLOYMENT }
             }
             parallel {
                 stage('Port Forward for Load Testing') {
@@ -157,7 +169,66 @@ pipeline {
 
                         echo "📊 Load test completed - archiving results..."
                         archiveArtifacts artifacts: 'load-testing/load_test_report_*.csv', allowEmptyArchive: true
-                    }
+                    }                }
+            }
+        }
+
+        stage('Generate Release Notes') {
+            when {
+                expression { return ENV == 'prod' }
+            }
+            steps {
+                script {
+                    echo "📝 Generating release notes for production deployment..."
+                    
+                    // Detecta el último tag como versión
+                    env.VERSION = bat(script: "git describe --tags --abbrev=0 2>nul || echo v0.0.0", returnStdout: true).trim()
+
+                    // Obtiene los commits desde ese tag
+                    def gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()
+
+                    // Detecta carpetas/microservicios afectados
+                    def servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD 2>nul | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^$\" 2>nul || echo \"No changes detected\"", returnStdout: true).trim()
+
+                    // Fecha actual
+                    def now = new Date().format("yyyy-MM-dd HH:mm:ss")                    // Release notes automático
+                    def notes = """
+                        === RELEASE NOTES ===
+                        Version: ${env.VERSION}
+                        Fecha: ${now}
+                        Environment: ${ENV}
+                        Namespace: ${NAMESPACE}
+
+                        Servicios modificados:
+                        ${servicesChanged}
+
+                        Commits recientes:
+                        ${gitLog}
+
+                        Build ejecutado por: ${env.BUILD_USER ?: 'jenkins'}
+                        Pipeline Job: ${env.JOB_NAME}
+                        Build Number: ${env.BUILD_NUMBER}
+                        =======================
+                        """                    // Crear el directorio release-notes si no existe
+                    bat 'if not exist "release-notes" mkdir "release-notes"'
+                    
+                    // Generar nombre único del archivo con timestamp
+                    def timestamp = new Date().format("yyyyMMdd-HHmmss")
+                    def fileName = "release-notes/release-notes-${env.VERSION}-${timestamp}.txt"
+                    
+                    writeFile file: fileName, text: notes
+                    archiveArtifacts artifacts: fileName
+                    
+                    echo "📋 Release Notes generadas:"
+                    echo notes
+                      // Guardar en el repositorio Git
+                    bat """
+                    git add ${fileName}
+                    git commit -m "📋 Release notes for ${env.VERSION} - Build #${env.BUILD_NUMBER}"
+                    git push origin HEAD:master
+                    """
+                    
+                    echo "✅ Release notes guardadas en el repositorio: ${fileName}"
                 }
             }
         }
