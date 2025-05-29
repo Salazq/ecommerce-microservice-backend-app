@@ -1,0 +1,26 @@
+=== RELEASE NOTES ===
+Version: C:\Users\Aluqui\.jenkins\workspace\dev>powershell -Command "& { $tag = git describe --tags --always --abbrev=0 2>$null; if ($tag) { $tag } else { 'v1.0.0' } }" 
+3c46fa4713f065862dddf1b9141b8422a77745b4
+Date: 2025-05-28 20:57:44
+Environment: prod
+Namespace: default
+Jenkins Build: #80
+
+Recent Changes:
+C:\Users\Aluqui\.jenkins\workspace\dev>powershell -Command "git diff --name-only HEAD~3..HEAD 2>$null" 
+Jenkinsfile
+release-notes/release-notes-C__Users_Aluqui_.jenkins_workspace_dev_git_describe_--tags_--always_--abbrev_0__2_nul___3bd188c5e7a0b4e94b46e13b6511826ad74b7c3a-20250528-205355.txt
+
+Recent Commits:
+C:\Users\Aluqui\.jenkins\workspace\dev>powershell -Command "git log --oneline -5" 
+3c46fa4 Merge branch 'master' of https://github.com/Salazq/ecommerce-microservice-backend-app
+b930f3b Fix: Release notes in jenkins 11
+fd50896 Release notes for C:\Users\Aluqui\.jenkins\workspace\dev>git describe --tags --always --abbrev=0  2>nul
+2b2175f Fix: Release notes in jenkins 11
+f46b052 Fix: Release notes in jenkins 10
+
+Build Information:
+- Job: dev
+- Build Number: 80
+- Build URL: http://localhost:8001/job/dev/80/
+=======================
