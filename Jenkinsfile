@@ -185,10 +185,8 @@ pipeline {
                     env.VERSION = bat(script: "git describe --tags --abbrev=0 2>nul || echo v0.0.0", returnStdout: true).trim()
 
                     // Obtiene los commits desde ese tag
-                    def gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()
-
-                    // Detecta carpetas/microservicios afectados
-                    def servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD 2>nul | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^$\" 2>nul || echo \"No changes detected\"", returnStdout: true).trim()
+                    def gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()                    // Detecta carpetas/microservicios afectados
+                    def servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD 2>nul | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^\$\" 2>nul || echo \"No changes detected\"", returnStdout: true).trim()
 
                     // Fecha actual
                     def now = new Date().format("yyyy-MM-dd HH:mm:ss")                    // Release notes automático
