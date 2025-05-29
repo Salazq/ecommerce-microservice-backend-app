@@ -114,7 +114,8 @@ pipeline {
                 }
             }
         }
-          stage('Run E2E with Forwarding') {
+        
+        stage('Run E2E with Forwarding') {
             when {
                 expression { return (ENV == 'stage' || ENV == 'prod') && !params.SKIP_TESTS && !params.SKIP_DEPLOYMENT }
             }
@@ -136,11 +137,10 @@ pipeline {
                         bat '''
                         powershell -ExecutionPolicy Bypass -File run-all-tests.ps1
                         echo done > done.flag
-                        '''
-                    }
+                        '''                    }
                 }
             }
-        }            
+        }
         
         stage('Load Testing with Forwarding') {
             when {
@@ -163,13 +163,14 @@ pipeline {
                         bat '''
                         powershell -ExecutionPolicy Bypass -File run-locust.ps1
                         echo done > done.flag
-                        '''
-
-                        echo "📊 Load test completed - archiving results..."
+                        '''                        echo "📊 Load test completed - archiving results..."
                         archiveArtifacts artifacts: 'load-testing/load_test_report_*.csv', allowEmptyArchive: true
-                    }                }
+                    }
+                }
             }
-        }        stage('Ensure Git Branch') {
+        }
+        
+        stage('Ensure Git Branch') {
             when {
                 expression { return ENV == 'prod' }
             }
