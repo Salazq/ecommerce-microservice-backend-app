@@ -188,15 +188,26 @@ pipeline {
                 expression { return ENV == 'prod' }
             }
             steps {
-                script {
+                script {                    
                     echo "📝 Generating release notes for production deployment..."
+                      // Intenta obtener el último tag, si no existe usa v1.0.0 como versión inicial
+                    def lastTag = bat(script: "git describe --tags --abbrev=0 2>nul", returnStdout: true, returnStatus: true)
+                    def gitLog
+                    def servicesChanged
                     
-                    // Detecta el último tag como versión
-                    env.VERSION = bat(script: "git describe --tags --abbrev=0 2>nul || echo v0.0.0", returnStdout: true).trim()
-
-                    // Obtiene los commits desde ese tag
-                    def gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()                    // Detecta carpetas/microservicios afectados
-                    def servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD 2>nul | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^\$\" 2>nul || echo \"No changes detected\"", returnStdout: true).trim()
+                    if (lastTag.status == 0) {
+                        env.VERSION = lastTag.stdout.trim()
+                        // Obtiene los commits desde ese tag
+                        gitLog = bat(script: "git log ${env.VERSION}..HEAD --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()
+                        // Detecta carpetas/microservicios afectados desde el último tag
+                        servicesChanged = bat(script: "git diff --name-only ${env.VERSION}..HEAD 2>nul | for /f \"delims=/\" %%i in ('more') do @echo %%i | sort | findstr /v \"^\$\" 2>nul || echo \"No changes detected\"", returnStdout: true).trim()
+                    } else {
+                        env.VERSION = "v1.0.0-build${env.BUILD_NUMBER}"
+                        // Si no hay tags, obtiene los últimos 10 commits
+                        gitLog = bat(script: "git log --oneline -10 --pretty=format:\"- %h %an %s (%cd)\" --date=short 2>nul || echo \"No commits found\"", returnStdout: true).trim()
+                        // Detecta todas las carpetas modificadas en el repositorio
+                        servicesChanged = bat(script: "dir /b /ad 2>nul | findstr -v \"^\\.\" | findstr -v \"target\" | findstr -v \"__pycache__\" || echo \"No services detected\"", returnStdout: true).trim()
+                    }
 
                     // Fecha actual
                     def now = new Date().format("yyyy-MM-dd HH:mm:ss")                    // Release notes automático
