@@ -1,11 +1,45 @@
 from locust import HttpUser, task, between
+import json
 
 class ProxyClientUser(HttpUser):
     wait_time = between(1, 5)  # Wait time between tasks
 
     # Define the base host for the proxy-client service
     # The API Gateway routes /app/** to the proxy-client
-    host = "http://localhost:8080/"
+    host = "http://localhost:8080/"    
+    
+    def generate_unique_user_data(self):
+        return {
+            "firstName": "LoadTest",
+            "lastName": "User",
+            "email": "loadtest.user@test.com",
+            "phone": "+1234567890",
+            "imageUrl": "http://example.com/image.jpg",
+            "credential": {
+                "username": "loadtestuser",
+                "password": "password123",
+                "roleBasedAuthority": "ROLE_USER",
+                "isEnabled": True,
+                "isAccountNonExpired": True,
+                "isAccountNonLocked": True,
+                "isCredentialsNonExpired": True
+            }
+        }    
+        
+    @task(2)  # Higher weight for user creation
+    def create_user(self):
+        user_data = self.generate_unique_user_data()
+        
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        response = self.client.post(
+            "user-service/api/users",
+            data=json.dumps(user_data),
+            headers=headers,
+            name="Create User"
+        )
 
     @task
     def get_users(self):

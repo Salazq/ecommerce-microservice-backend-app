@@ -1,0 +1,3 @@
+Method,Name,Error,Occurrences
+GET,/order-service/api/orders,"ConnectionResetError(10054, 'Se ha forzado la interrupción de una conexión existente por el host remoto', None, 10054, None)",1
+GET,/user-service/api/credentials,"ConnectionResetError(10054, 'Se ha forzado la interrupción de una conexión existente por el host remoto', None, 10054, None)",1

@@ -157,16 +157,14 @@ pipeline {
                 stage('Locust Load Tests') {
                     steps {
                         echo "⏳ Waiting for port-forward to be ready..."
-                        sleep(time: 10, unit: 'SECONDS')
-
-                        echo "🚀 Running Locust load tests..."
+                        sleep(time: 10, unit: 'SECONDS')                        echo "Running Locust load tests..."
                         bat '''
                         powershell -ExecutionPolicy Bypass -File run-locust.ps1
                         echo done > done.flag
                         '''
 
                         echo "📊 Load test completed - archiving results..."
-                        archiveArtifacts artifacts: 'load-testing/load_test_report_*.csv', allowEmptyArchive: true
+                        archiveArtifacts artifacts: 'load-testing/resultados-carga/*.csv, load-testing/resultados-estres/*.csv', allowEmptyArchive: true
                     }                }
             }
         }
@@ -245,7 +243,7 @@ Build URL: ${env.BUILD_URL ?: 'N/A'}
                         writeFile file: fileName, text: notes
                         archiveArtifacts artifacts: fileName
                         
-                        echo "📋 Release Notes:"
+                        echo " Release Notes:"
                         echo notes
                         
                         // Commit opcional (simplificado)
@@ -256,7 +254,7 @@ Build URL: ${env.BUILD_URL ?: 'N/A'}
                             git pull origin master --rebase --quiet
                             git push origin HEAD:master --quiet
                             """
-                            echo "✅ Release notes committed to repository"
+                            echo "Release notes committed to repository"
                         } catch (Exception gitError) {
                             echo "⚠️ Could not commit to Git (archived as artifact)"
                         }
