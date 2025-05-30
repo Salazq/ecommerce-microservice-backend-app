@@ -16,6 +16,7 @@ pipeline {
     }
 
     stages {
+
         stage('Validate Parameters') {
             steps {
                 script {
@@ -23,7 +24,9 @@ pipeline {
                     echo "Namespace: ${NAMESPACE}"
                 }
             }
-        }        stage('Run Tests') {
+        }        
+        
+        stage('Run Tests') {
             when {
                 expression { return ENV == 'stage' && !params.SKIP_TESTS }
             }
@@ -53,6 +56,7 @@ pipeline {
                 }                
             }
         }
+    
         
         stage('Start Minikube if needed') {
             when {
@@ -224,7 +228,7 @@ pipeline {
 
                             Job: ${env.JOB_NAME}
                             Build URL: ${env.BUILD_URL ?: 'N/A'}
-======================="""
+                            ======================="""
 
                         // Crear directorio y archivo
                         bat 'if not exist "release-notes" mkdir "release-notes"'
@@ -257,11 +261,11 @@ pipeline {
                         
                         
                         def basicNotes = """=== RELEASE NOTES ===
-Version: Build-${env.BUILD_NUMBER}
-Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
-Environment: ${ENV}
-Status: Deployment completed
-============================"""
+                            Version: Build-${env.BUILD_NUMBER}
+                            Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
+                            Environment: ${ENV}
+                            Status: Deployment completed
+                            ============================"""
                         
                         def timestamp = new Date().format("yyyyMMdd-HHmmss")
                         def fileName = "release-notes/basic-${timestamp}.txt"
@@ -274,7 +278,7 @@ Status: Deployment completed
         }
     }
 }
-// Helpers fuera del bloque principal
+
 def getServicesList() {
     return [
         'service-discovery',
