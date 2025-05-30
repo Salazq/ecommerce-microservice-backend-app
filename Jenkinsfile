@@ -100,7 +100,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Run E2E with Forwarding') {
             when {
                 expression { return (ENV == 'stage' || ENV == 'prod') && !params.SKIP_TESTS && !params.SKIP_DEPLOYMENT }
@@ -204,7 +204,7 @@ pipeline {
                             env.VERSION = "v1.0.0"
                         }
                         
-                        echo "📌 Found version: ${env.VERSION}"
+                        echo " Found version: ${env.VERSION}"
 
                         // Fecha actual
                         def now = new Date().format("yyyy-MM-dd HH:mm:ss")

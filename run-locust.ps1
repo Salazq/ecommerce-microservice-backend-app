@@ -58,16 +58,18 @@ function Run-LocustTest {
     Write-Host "Carpeta de resultados: $outputDir"
     Write-Host "Los archivos anteriores serán sobrescritos"
     Write-Host "============================================================`n"
-    
-    python -m locust -f $locustFile --headless -u $users -r $spawnRate -t $duration --csv=$reportPrefix
+      # Generar tanto CSV como HTML
+    python -m locust -f $locustFile --headless -u $users -r $spawnRate -t $duration --csv=$reportPrefix --html="$reportPrefix`_report.html"
     
     Write-Host "`nInforme de $testType guardado en $outputDir como:"
-    Write-Host "  - $reportPrefix`_stats.csv"
-    Write-Host "  - $reportPrefix`_failures.csv"
-    Write-Host "  - $reportPrefix`_stats_history.csv"
+    Write-Host "  📊 REPORTE HTML CON GRÁFICAS: $reportPrefix`_report.html"
+    Write-Host "  📄 Archivos CSV:"
+    Write-Host "    - $reportPrefix`_stats.csv"
+    Write-Host "    - $reportPrefix`_failures.csv"
+    Write-Host "    - $reportPrefix`_stats_history.csv"
     
     if (Test-Path "$reportPrefix`_exceptions.csv") {
-        Write-Host "  - $reportPrefix`_exceptions.csv"
+        Write-Host "    - $reportPrefix`_exceptions.csv"
     }
 }
 
@@ -81,6 +83,11 @@ Start-Sleep -Seconds 30
 
 # 2. Ejecutar prueba de estrés  
 Run-LocustTest -testType "ESTRES" -users $stressTestUsers -spawnRate $stressTestSpawnRate -duration $stressTestDuration -outputDir $stressResultsDir
+
+
+Write-Host "`n✅ Pruebas completadas. Los reportes están disponibles en:" -ForegroundColor Green
+Write-Host "📁 Carga: $loadResultsDir" -ForegroundColor Cyan
+Write-Host "📁 Estrés: $stressResultsDir" -ForegroundColor Cyan
 
 # Regresar a la ubicación original
 Set-Location $originalLocation

@@ -37,8 +37,3 @@ newman run "postman-collections/05 - Resource Deletion Tests.postman_collection.
     --reporters cli,json,html `
     --reporter-json-export "newman-results/05-resource-deletion-results.json" `
     --reporter-html-export "newman-results/05-resource-deletion-results.html"
-
-Write-Host "`n✅ Todos los tests han sido ejecutados!" -ForegroundColor Green
-Write-Host "📊 Reportes generados en la carpeta: newman-results/" -ForegroundColor Yellow
-Write-Host "   - Archivos JSON: Para análisis programático" -ForegroundColor Gray
-Write-Host "   - Archivos HTML: Para visualización en navegador" -ForegroundColor Gray
