@@ -23,47 +23,36 @@ pipeline {
                     echo "Namespace: ${NAMESPACE}"
                 }
             }
-        }
-
-       
-
-        stage('Run Tests') {
+        }        stage('Run Tests') {
             when {
-                expression { return !params.SKIP_TESTS }
+                expression { return ENV == 'stage' && !params.SKIP_TESTS }
             }
             steps {
                 script {
-                    switch (ENV) {
-                        case 'dev':
-                            echo "🚀 DEV Environment: Skipping all tests for faster deployment"
-                            break
 
-                        case 'stage':
-                            echo " STAGE Environment: Running unit and integration tests"
+                    echo "🧪 STAGE Environment: Running unit and integration tests"
 
-                            parallel(
-                                'Unit Tests': {
-                                    echo "Running unit tests only for user-service..."
-                                    dir('user-service') {
-                                        bat "mvnw.cmd test -Dtest=*ApplicationTests*"
-                                    }
-                                },
-                                'Integration Tests': {
-                                    echo "Running integration tests only for user-service..."
-                                    dir('user-service') {
-                                        bat "mvnw.cmd test -Dtest=*ResourceIntegrationTest"
-                                    }
-                                }                            )
-                            break
-
-                        case 'prod':
-                            echo " PROD Environment: E2E tests will run after deployment"
-                            break
-                        default:
-                            error("Unknown environment: ${ENV}")
-                    }                }
+                    parallel(
+                        'Unit Tests': {
+                            echo "Running unit tests only for user-service..."
+                            dir('user-service') {
+                                bat "mvnw.cmd test -Dtest=*ApplicationTests*"
+                            }
+                        },
+                        'Integration Tests': {
+                            echo "Running integration tests only for user-service..."
+                            dir('user-service') {
+                                bat "mvnw.cmd test -Dtest=*ResourceIntegrationTest"
+                            }
+                        }
+                    )
+                    
+                    echo " Archiving unit and integration test results..."
+                    archiveArtifacts artifacts: 'user-service/target/surefire-reports/*.xml, user-service/target/surefire-reports/*.txt', allowEmptyArchive: true
+                    
+                }                
             }
-        }        
+        }
         
         stage('Start Minikube if needed') {
             when {
@@ -111,7 +100,8 @@ pipeline {
                 }
             }
         }
-          stage('Run E2E with Forwarding') {
+        
+        stage('Run E2E with Forwarding') {
             when {
                 expression { return (ENV == 'stage' || ENV == 'prod') && !params.SKIP_TESTS && !params.SKIP_DEPLOYMENT }
             }
@@ -122,18 +112,20 @@ pipeline {
                         echo " Starting kubectl port-forward in loop until tests are done..."
                         bat 'powershell -ExecutionPolicy Bypass -File forward.ps1'
                     }
-                }
-
+                }                
+                
                 stage('E2E Tests') {
                     steps {
-                        echo "Waiting a bit for port-forward to initialize..."
+                        echo "⏳ Waiting a bit for port-forward to initialize..."
                         sleep(time: 360, unit: 'SECONDS')
 
-                        echo "Running E2E tests..."
+                        echo "🎯 Running E2E tests..."
                         bat '''
                         powershell -ExecutionPolicy Bypass -File run-all-tests.ps1
                         echo done > done.flag
-                        '''
+                        '''                        
+                        echo "📊 Archiving E2E test results..."
+                        archiveArtifacts artifacts: 'newman-results/*.json, newman-results/*.html, postman-collections/*.json', allowEmptyArchive: true
                     }
                 }
             }
@@ -168,6 +160,9 @@ pipeline {
         }
 
         stage('Ensure Git Branch') {
+            when {
+                expression { return ENV == 'prod' }
+            }
             steps {
                 script {
                     echo " Updating and changing to master branch"
