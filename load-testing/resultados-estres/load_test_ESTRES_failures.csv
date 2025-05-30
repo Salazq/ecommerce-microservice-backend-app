@@ -1,18 +1,1 @@
 Method,Name,Error,Occurrences
-GET,/user-service/api/credentials,HTTPError('503 Server Error: Service Unavailable for url: /user-service/api/credentials'),11
-GET,/product-service/api/products,HTTPError('503 Server Error: Service Unavailable for url: /product-service/api/products'),4
-GET,/product-service/api/categories,HTTPError('503 Server Error: Service Unavailable for url: /product-service/api/categories'),8
-GET,/user-service/api/users,HTTPError('503 Server Error: Service Unavailable for url: /user-service/api/users'),7
-POST,Create User,"ConnectionAbortedError(10053, 'Se ha anulado una conexión establecida por el software en su equipo host', None, 10053, None)",3
-GET,/product-service/api/categories,RemoteDisconnected('Remote end closed connection without response'),231
-GET,/product-service/api/products,"ConnectionAbortedError(10053, 'Se ha anulado una conexión establecida por el software en su equipo host', None, 10053, None)",2
-GET,/order-service/api/orders,"ConnectionAbortedError(10053, 'Se ha anulado una conexión establecida por el software en su equipo host', None, 10053, None)",2
-GET,/user-service/api/users,RemoteDisconnected('Remote end closed connection without response'),212
-GET,/order-service/api/orders,RemoteDisconnected('Remote end closed connection without response'),217
-POST,Create User,RemoteDisconnected('Remote end closed connection without response'),482
-GET,/product-service/api/categories,"ConnectionAbortedError(10053, 'Se ha anulado una conexión establecida por el software en su equipo host', None, 10053, None)",3
-GET,/product-service/api/products,RemoteDisconnected('Remote end closed connection without response'),235
-GET,/user-service/api/credentials,"ConnectionAbortedError(10053, 'Se ha anulado una conexión establecida por el software en su equipo host', None, 10053, None)",2
-POST,Create User,HTTPError('503 Server Error: Service Unavailable for url: Create User'),13
-GET,/order-service/api/orders,HTTPError('503 Server Error: Service Unavailable for url: /order-service/api/orders'),9
-GET,/user-service/api/credentials,RemoteDisconnected('Remote end closed connection without response'),217
