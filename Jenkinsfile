@@ -1,6 +1,3 @@
-// Jenkins Pipeline para eCommerce Microservices
-// Configurado para usar imágenes pre-construidas de Docker Hub (salazq/*)
-// Forzar parámetros visibles para Jenkins
 properties([
     parameters([
         choice(name: 'ENVIRONMENT', choices: ['dev', 'stage', 'prod'], description: 'Environment to deploy'),
@@ -42,7 +39,7 @@ pipeline {
                             break
 
                         case 'stage':
-                            echo "🧪 STAGE Environment: Running unit and integration tests"
+                            echo " STAGE Environment: Running unit and integration tests"
 
                             parallel(
                                 'Unit Tests': {
@@ -60,7 +57,7 @@ pipeline {
                             break
 
                         case 'prod':
-                            echo "🎯 PROD Environment: E2E tests will run after deployment"
+                            echo " PROD Environment: E2E tests will run after deployment"
                             break
                         default:
                             error("Unknown environment: ${ENV}")
@@ -122,17 +119,17 @@ pipeline {
                 stage('Port Forward') {
                     steps {
                         sleep(time: 350, unit: 'SECONDS')
-                        echo "📡 Starting kubectl port-forward in loop until tests are done..."
+                        echo " Starting kubectl port-forward in loop until tests are done..."
                         bat 'powershell -ExecutionPolicy Bypass -File forward.ps1'
                     }
                 }
 
                 stage('E2E Tests') {
                     steps {
-                        echo "⏳ Waiting a bit for port-forward to initialize..."
+                        echo "Waiting a bit for port-forward to initialize..."
                         sleep(time: 360, unit: 'SECONDS')
 
-                        echo "🎯 Running E2E tests..."
+                        echo "Running E2E tests..."
                         bat '''
                         powershell -ExecutionPolicy Bypass -File run-all-tests.ps1
                         echo done > done.flag
@@ -149,21 +146,22 @@ pipeline {
             parallel {
                 stage('Port Forward for Load Testing') {
                     steps {
-                        echo "📡 Starting kubectl port-forward for load testing..."
+                        echo " Starting kubectl port-forward for load testing..."
                         bat 'powershell -ExecutionPolicy Bypass -File forward.ps1'
                     }
                 }
 
                 stage('Locust Load Tests') {
                     steps {
-                        echo "⏳ Waiting for port-forward to be ready..."
-                        sleep(time: 10, unit: 'SECONDS')                        echo "Running Locust load tests..."
+                        echo " Waiting for port-forward to be ready..."
+                        sleep(time: 10, unit: 'SECONDS')                        
+                        echo "Running Locust load tests..."
                         bat '''
                         powershell -ExecutionPolicy Bypass -File run-locust.ps1
                         echo done > done.flag
                         '''
 
-                        echo "📊 Load test completed - archiving results..."
+                        echo " Load test completed - archiving results..."
                         archiveArtifacts artifacts: 'load-testing/resultados-carga/*.csv, load-testing/resultados-estres/*.csv', allowEmptyArchive: true
                     }                }
             }
@@ -172,7 +170,7 @@ pipeline {
         stage('Ensure Git Branch') {
             steps {
                 script {
-                    echo "🔄 Updating and changing to master branch"
+                    echo " Updating and changing to master branch"
                     bat '''
                     git fetch origin
                     git checkout master
@@ -191,7 +189,7 @@ pipeline {
                     echo "📝 Generating release notes for production deployment..."
                     
                     try {
-                        // Usar script temporal para obtener solo el resultado
+                        
                         bat '''
                         @echo off
                         git describe --tags --always --abbrev=0 2>nul > temp_version.txt || echo v1.0.0 > temp_version.txt
@@ -199,12 +197,12 @@ pipeline {
                         git diff --name-only HEAD~2..HEAD 2>nul > temp_files.txt || echo "No changes" > temp_files.txt
                         '''
                         
-                        // Leer los archivos temporales
+                        
                         env.VERSION = readFile('temp_version.txt').trim()
                         def gitLog = readFile('temp_commits.txt').trim()
                         def filesChanged = readFile('temp_files.txt').trim()
                         
-                        // Limpiar archivos temporales
+                       
                         bat 'del temp_version.txt temp_commits.txt temp_files.txt 2>nul'
                         
                         if (!env.VERSION || env.VERSION.isEmpty()) {
@@ -218,19 +216,19 @@ pipeline {
 
                         // Release notes simplificado
                         def notes = """=== RELEASE NOTES ===
-Version: ${env.VERSION}
-Date: ${now}
-Environment: ${ENV}
-Build: #${env.BUILD_NUMBER}
+                            Version: ${env.VERSION}
+                            Date: ${now}
+                            Environment: ${ENV}
+                            Build: #${env.BUILD_NUMBER}
 
-Recent Changes:
-${filesChanged}
+                            Recent Changes:
+                            ${filesChanged}
 
-Recent Commits:
-${gitLog}
+                            Recent Commits:
+                            ${gitLog}
 
-Job: ${env.JOB_NAME}
-Build URL: ${env.BUILD_URL ?: 'N/A'}
+                            Job: ${env.JOB_NAME}
+                            Build URL: ${env.BUILD_URL ?: 'N/A'}
 ======================="""
 
                         // Crear directorio y archivo
@@ -246,7 +244,7 @@ Build URL: ${env.BUILD_URL ?: 'N/A'}
                         echo " Release Notes:"
                         echo notes
                         
-                        // Commit opcional (simplificado)
+                       
                         try {
                             bat """
                             git add ${fileName}
@@ -262,7 +260,7 @@ Build URL: ${env.BUILD_URL ?: 'N/A'}
                     } catch (Exception e) {
                         echo "⚠️ Error generating release notes: ${e.message}"
                         
-                        // Fallback básico
+                        
                         def basicNotes = """=== RELEASE NOTES ===
 Version: Build-${env.BUILD_NUMBER}
 Date: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
@@ -274,7 +272,7 @@ Status: Deployment completed
                         def fileName = "release-notes/basic-${timestamp}.txt"
                         writeFile file: fileName, text: basicNotes
                         archiveArtifacts artifacts: fileName
-                        echo "📋 Basic release notes generated"
+                        echo " Basic release notes generated"
                     }
                 }
             }
