@@ -7,9 +7,9 @@ $loadTestSpawnRate = 2
 $loadTestDuration = "60s"
 
 # Configuración para prueba de estrés 
-$stressTestUsers = 50
-$stressTestSpawnRate = 10
-$stressTestDuration = "120s"
+$stressTestUsers = 150
+$stressTestSpawnRate = 20
+$stressTestDuration = "60s"
 
 # Guardar la ubicación actual
 $originalLocation = Get-Location
@@ -75,10 +75,10 @@ function Run-LocustTest {
 # ==================== EJECUTAR PRUEBAS ====================
 
 # 1. Ejecutar prueba de carga
-Run-LocustTest -testType "CARGA" -users $loadTestUsers -spawnRate $loadTestSpawnRate -duration $loadTestDuration -outputDir $loadResultsDir
+#Run-LocustTest -testType "CARGA" -users $loadTestUsers -spawnRate $loadTestSpawnRate -duration $loadTestDuration -outputDir $loadResultsDir
 
-Write-Host "Esperando 30 segundos antes de la prueba de estrés..."
-Start-Sleep -Seconds 30
+#Write-Host "Esperando 30 segundos antes de la prueba de estrés..."
+#Start-Sleep -Seconds 30
 
 # 2. Ejecutar prueba de estrés  
 Run-LocustTest -testType "ESTRES" -users $stressTestUsers -spawnRate $stressTestSpawnRate -duration $stressTestDuration -outputDir $stressResultsDir

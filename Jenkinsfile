@@ -158,7 +158,7 @@ pipeline {
                         '''
 
                         echo " Load test completed - archiving results..."
-                        archiveArtifacts artifacts: 'load-testing/resultados-carga/*.csv, load-testing/resultados-estres/*.csv', allowEmptyArchive: true
+                        archiveArtifacts artifacts: 'load-testing/resultados-carga/*, load-testing/resultados-estres/*', allowEmptyArchive: true
                     }                }
             }
         }
