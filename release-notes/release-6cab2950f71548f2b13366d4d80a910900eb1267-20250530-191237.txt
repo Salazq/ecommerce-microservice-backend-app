@@ -1,0 +1,27 @@
+=== RELEASE NOTES ===
+                            Version: 6cab2950f71548f2b13366d4d80a910900eb1267
+                            Date: 2025-05-30 19:12:37
+                            Environment: prod
+                            Build: #88
+
+                            Recent Changes:
+                            Jenkinsfile
+load-testing/resultados-carga/load_test_CARGA_failures.csv
+load-testing/resultados-carga/load_test_CARGA_report.html
+load-testing/resultados-carga/load_test_CARGA_stats.csv
+load-testing/resultados-carga/load_test_CARGA_stats_history.csv
+load-testing/resultados-estres/load_test_ESTRES_failures.csv
+load-testing/resultados-estres/load_test_ESTRES_report.html
+load-testing/resultados-estres/load_test_ESTRES_stats.csv
+load-testing/resultados-estres/load_test_ESTRES_stats_history.csv
+run-all-tests.ps1
+run-locust.ps1
+
+                            Recent Commits:
+                            6cab295 Fix test script
+8f8d329 Fix jenkinsfile
+3670253 Add reports to tests
+
+                            Job: dev
+                            Build URL: http://localhost:8001/job/dev/88/
+                            =======================
