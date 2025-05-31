@@ -8,7 +8,7 @@ $loadTestDuration = "60s"
 
 # Configuración para prueba de estrés 
 $stressTestUsers = 150
-$stressTestSpawnRate = 20
+$stressTestSpawnRate = 3
 $stressTestDuration = "60s"
 
 # Guardar la ubicación actual
