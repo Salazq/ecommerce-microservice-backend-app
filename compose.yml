@@ -190,32 +190,58 @@ services:
       restart_policy:
         condition: on-failure
         delay: 15s
-  shipping-service:
+  nginx:
     build:
-      context: ./shipping-service
+      context: ./nginx
       dockerfile: Dockerfile
-    container_name: shipping-service
+    # Alternativamente, puedes usar tu imagen desde Docker Hub:
+    # image: tuusername/nginx-proxy:latest  # Cambia 'tuusername' por tu username
+    container_name: nginx
     ports:
-      - 8600:8600
+      - "80:80"
     depends_on:
-      user-service:
+      api-gateway:
         condition: service_healthy
-    environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
-      - EUREKA_INSTANCE=shipping-service
+      service-discovery:
+        condition: service_healthy
     networks:
       - ecommerce-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8600/shipping-service/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 10s
       timeout: 5s
       retries: 5
     deploy:
       restart_policy:
-        condition: on-failure
+        condition: on-failure        
         delay: 15s
+
+  # shipping-service:
+  #   build:
+  #     context: ./shipping-service
+  #     dockerfile: Dockerfile
+  #   container_name: shipping-service
+  #   ports:
+  #     - 8600:8600
+  #   depends_on:
+  #     user-service:
+  #       condition: service_healthy
+  #   environment:
+  #     - SPRING_PROFILES_ACTIVE=dev
+  #     - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
+  #     - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+  #     - EUREKA_INSTANCE=shipping-service
+  #   networks:
+  #     - ecommerce-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8600/shipping-service/actuator/health"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   deploy:
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 15s
   # payment-service:
   #   build:
   #     context: ./payment-service

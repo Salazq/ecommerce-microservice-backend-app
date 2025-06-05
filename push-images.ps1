@@ -15,7 +15,8 @@ $microservices = @(
     "user-service",
     "shipping-service",
     "payment-service",
-    "favourite-service"
+    "favourite-service",
+    "nginx"
 )
 
 function Build-Service {

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-proxy
+  template:
+    metadata:
+      labels:
+        app: nginx-proxy
+    spec:
+      initContainers:
+      - name: wait-for-api-gateway
+        image: curlimages/curl:7.85.0
+        command: ['sh', '-c', 'until curl -f http://api-gateway:8080/actuator/health; do echo waiting for api-gateway; sleep 5; done']
+      - name: wait-for-service-discovery
+        image: curlimages/curl:7.85.0
+        command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']      
+      containers:
+      - name: nginx-proxy
+        image: salazq/nginx-proxy:latest 
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
