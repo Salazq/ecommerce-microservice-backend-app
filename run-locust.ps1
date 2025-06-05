@@ -72,13 +72,12 @@ function Run-LocustTest {
     }
 }
 
-# ==================== EJECUTAR PRUEBAS ====================
 
 # 1. Ejecutar prueba de carga
-#Run-LocustTest -testType "CARGA" -users $loadTestUsers -spawnRate $loadTestSpawnRate -duration $loadTestDuration -outputDir $loadResultsDir
+Run-LocustTest -testType "CARGA" -users $loadTestUsers -spawnRate $loadTestSpawnRate -duration $loadTestDuration -outputDir $loadResultsDir
 
-#Write-Host "Esperando 30 segundos antes de la prueba de estrés..."
-#Start-Sleep -Seconds 30
+Write-Host "Esperando 30 segundos antes de la prueba de estrés..."
+Start-Sleep -Seconds 30
 
 # 2. Ejecutar prueba de estrés  
 Run-LocustTest -testType "ESTRES" -users $stressTestUsers -spawnRate $stressTestSpawnRate -duration $stressTestDuration -outputDir $stressResultsDir

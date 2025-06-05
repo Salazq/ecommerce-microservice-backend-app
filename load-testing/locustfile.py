@@ -2,10 +2,8 @@ from locust import HttpUser, task, between
 import json
 
 class ProxyClientUser(HttpUser):
-    wait_time = between(1, 5)  # Wait time between tasks
+    wait_time = between(1, 5)
 
-    # Define the base host for the proxy-client service
-    # The API Gateway routes /app/** to the proxy-client
     host = "http://localhost:8080/"    
     
     def generate_unique_user_data(self):
@@ -26,7 +24,7 @@ class ProxyClientUser(HttpUser):
             }
         }    
         
-    @task(2)  # Higher weight for user creation
+    @task(2)  
     def create_user(self):
         user_data = self.generate_unique_user_data()
         
