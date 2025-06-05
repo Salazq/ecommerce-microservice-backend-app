@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: favourite-service
+  namespace: ecommerce
+  labels:
+    app: favourite-service
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: favourite-service
+  template:
+    metadata:
+      labels:
+        app: favourite-service
+        version: v1
+    spec:
+      initContainers:
+      - name: wait-for-cloud-config
+        image: curlimages/curl:7.85.0
+        command: ['sh', '-c', 'until curl -f http://cloud-config:9296/actuator/health; do echo waiting for cloud-config; sleep 5; done']
+      - name: wait-for-service-discovery
+        image: curlimages/curl:7.85.0
+        command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']
+      containers:
+      - name: favourite-service
+        image: salazq/favourite-service:latest
+        imagePullPolicy: Always        
+        ports:
+        - containerPort: 8800
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev"
+        - name: SPRING_ZIPKIN_BASE_URL
+          value: "http://zipkin:9411/"
+        - name: SPRING_CONFIG_IMPORT
+          value: "optional:configserver:http://cloud-config:9296"
+        - name: EUREKA_INSTANCE
+          value: "favourite-service"
+        readinessProbe:
+          httpGet:
+            path: /favourite-service/actuator/health
+            port: 8800
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: favourite-service
+  namespace: ecommerce
+  labels:
+    app: favourite-service
+spec:
+  type: ClusterIP
+  selector:
+    app: favourite-service  
+  ports:
+    - protocol: TCP
+      port: 8800
+      targetPort: 8800
