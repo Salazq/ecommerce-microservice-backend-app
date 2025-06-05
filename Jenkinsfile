@@ -279,21 +279,6 @@ pipeline {
     }
 }
 
-def getServicesList() {
-    return [
-        'service-discovery',
-        'cloud-config',
-        'api-gateway',
-        'proxy-client',
-        'order-service',
-        'product-service',
-        'user-service',
-        'shipping-service'/*,
-        'payment-service',
-        'favourite-service' */
-    ]
-}
-
 def getDeploymentServicesList() {
     return [
         'zipkin',
@@ -304,7 +289,8 @@ def getDeploymentServicesList() {
         'order-service',
         'product-service',
         'user-service',
-        'shipping-service'/*,
+        'shipping-service',
+        'nginx'/*,
         'payment-service',
         'favourite-service'*/
     ]
