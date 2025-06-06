@@ -37,6 +37,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/namespace.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
             displayName: 'Deploy Zipkin'
@@ -47,6 +48,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/zipkin.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
             displayName: 'Deploy Cloud Config Service'
@@ -57,6 +59,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/cloud-config.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Deploy Service Discovery'
@@ -67,6 +70,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/service-discovery.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
             displayName: 'Deploy API Gateway'
@@ -77,6 +81,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/api-gateway.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
             displayName: 'Deploy User Service'
@@ -87,6 +92,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/user-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Deploy Product Service'
@@ -97,6 +103,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/product-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Deploy Order Service'
@@ -107,6 +114,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/order-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Deploy Payment Service'
@@ -117,6 +125,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/payment-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Deploy Favourite Service'
@@ -127,6 +136,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/favourite-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Deploy Shipping Service'
@@ -137,6 +147,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/shipping-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Deploy Proxy Client'
@@ -147,6 +158,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/proxy-client.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Deploy Nginx'
@@ -157,6 +169,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
               arguments: '-f k8s-aks/nginx.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Verify Deployment Status'
@@ -167,6 +180,7 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'get'
               arguments: 'pods -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
             displayName: 'Get Services Status'
@@ -177,3 +191,4 @@ stages:
               kubernetesCluster: $(aksClusterName)
               command: 'get'
               arguments: 'services -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
