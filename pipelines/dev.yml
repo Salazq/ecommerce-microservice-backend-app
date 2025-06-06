@@ -1,13 +1,16 @@
-trigger:
-  none
+trigger: none
 
 variables:
-  # AKS Cluster details
-  aksResourceGroup: 'dev-resource-group' # Replace with your resource group name
-  aksClusterName: 'dev-aks-cluster' # Replace with your AKS cluster name
-  # Kubernetes namespace
-  kubernetesNamespace: 'ecommerce'
-
+  - group: variable-group-taller
+  - name: environmentPath
+    value: 'terraform/environments/$(environment)'
+  - name: aksResourceGroup
+    value: 'dev-resource-group'
+  - name: aksClusterName
+    value: 'dev-aks-cluster'
+  - name: kubernetesNamespace
+    value: 'ecommerce'
+  
 stages:
 - stage: Deploy
   displayName: 'Deploy to AKS'
