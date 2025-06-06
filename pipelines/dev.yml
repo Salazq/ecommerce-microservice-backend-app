@@ -5,8 +5,8 @@ trigger:
 
 variables:
   # AKS Cluster details
-  aksResourceGroup: 'your-resource-group' # Replace with your resource group name
-  aksClusterName: 'your-aks-cluster' # Replace with your AKS cluster name
+  aksResourceGroup: 'dev-resource-group' # Replace with your resource group name
+  aksClusterName: 'dev-aks-cluster' # Replace with your AKS cluster name
   # Kubernetes namespace
   kubernetesNamespace: 'ecommerce'
 
