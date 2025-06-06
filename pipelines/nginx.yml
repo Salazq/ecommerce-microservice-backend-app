@@ -1,0 +1,65 @@
+trigger: none
+
+variables:
+  - group: variable-group-taller
+  - name: aksResourceGroup
+    value: 'dev-resource-group'
+  - name: aksClusterName
+    value: 'dev-aks-cluster'
+  - name: kubernetesNamespace
+    value: 'ecommerce'
+
+stages:
+- stage: ReplaceNginx
+  displayName: 'Replace Nginx Deployment'
+  jobs:
+  - deployment: ReplaceNginxDeployment
+    displayName: 'Delete and Reapply Nginx Deployment'
+    environment: 'development'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          
+          - task: AzureCLI@2
+            displayName: 'Get AKS credentials'
+            inputs:
+              azureSubscription: $(AZURE_ACCOUNT)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+
+          - task: Kubernetes@1
+            displayName: 'Delete Existing Nginx Deployment'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'delete'
+              arguments: '-f k8s-aks/nginx.yaml -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Apply New Nginx Deployment'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/nginx.yaml -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Check Nginx Pod Status'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'get'
+              arguments: 'pods -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
