@@ -1,0 +1,1305 @@
+{
+	"info": {
+		"_postman_id": "c37c5b44-f59c-49d3-8c39-f5ece37201e1",
+		"name": "Test E2E",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45004879"
+	},
+	"item": [
+		{
+			"name": "users",
+			"item": [
+				{
+					"name": "Create User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"userId\", response.userId);\r",
+									"pm.collectionVariables.set(\"credentialId\", response.credential.credentialId);\r",
+									"\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \r\n    \"firstName\": \"Samuel\", \r\n    \"lastName\": \"gutierrez\", \r\n    \"imageUrl\": \"{{$randomUrl}}\", \r\n    \"email\": \"{{$randomEmail}}\",\r\n    \"phone\": \"{{$randomPhoneNumber}}\",\r\n    \"addressDtos\": [\r\n        {\r\n            \"fullAddress\": \"calle 13 b\", \r\n            \"postalCode\": \"760054\", \r\n            \"city\": \"Cali\"\r\n        }\r\n    ], \r\n    \"credential\": { \r\n        \"username\": \"johndoe\", \r\n        \"password\": \"password\", \r\n        \"roleBasedAuthority\": \"ROLE_USER\", \r\n        \"isEnabled\": true, \r\n        \"isAccountNonExpired\": true, \r\n        \"isAccountNonLocked\": true, \r\n        \"isCredentialsNonExpired\": true \r\n    }\r\n }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/user-service/api/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Credential",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"credentialId\": {{credentialId}},\r\n    \"username\": \"johndoe\", \r\n    \"password\": \"password\", \r\n    \"roleBasedAuthority\": \"ROLE_USER\", \r\n    \"isEnabled\": true, \r\n    \"isAccountNonExpired\": true, \r\n    \"isAccountNonLocked\": true, \r\n    \"isCredentialsNonExpired\": true, \r\n    \"user\" :{\r\n        \"userId\": \"{{userId}}\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/user-service/api/credentials",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"credentials"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get created user",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user-service/api/users/{{userId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Products",
+			"item": [
+				{
+					"name": "Create Category",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"category_id\", response.categoryId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"categoryTitle\": \"Electrodomesticos\",\r\n    \"imageUrl\": \"{{$randomUrl}}\",\r\n    \"parentCategory\": {\r\n        \"categoryId\": 1,\r\n        \"categoryTitle\": \"Casas\",\r\n        \"imageUrl\": null\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/product-service/api/categories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"categories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"product_id\", response.productId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": " { \r\n    \"productTitle\": \"Samsung ultra cooler\", \r\n    \"imageUrl\": \"{{$randomUrl}}\", \r\n    \"sku\": \"{{$randomAlphaNumeric}}\",\r\n    \"priceUnit\": {{$randomPrice}},\r\n    \"quantity\": {{$randomInt}},\r\n    \"category\": {\r\n        \"categoryId\": {{category_id}}\r\n    }\r\n    \r\n }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/product-service/api/products",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"products"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get category",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/product-service/api/categories/{{category_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"categories",
+								"{{category_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/product-service/api/products/{{product_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"products",
+								"{{product_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment",
+			"item": [
+				{
+					"name": "Create User V2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"userId\", response.userId);\r",
+									"pm.collectionVariables.set(\"credentialId\", response.credential.credentialId);\r",
+									"\r",
+									"\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \r\n    \"firstName\": \"Gerardo\", \r\n    \"lastName\": \"Dominguez\", \r\n    \"imageUrl\": \"{{$randomUrl}}\", \r\n    \"email\": \"{{$randomEmail}}\",\r\n    \"phone\": \"{{$randomPhoneNumber}}\",\r\n    \"addressDtos\": [\r\n        {\r\n            \"fullAddress\": \"calle 13 b\", \r\n            \"postalCode\": \"760054\", \r\n            \"city\": \"Cali\"\r\n        }\r\n    ], \r\n    \"credential\": { \r\n        \"username\": \"johndoe2\", \r\n        \"password\": \"password2\", \r\n        \"roleBasedAuthority\": \"ROLE_USER\", \r\n        \"isEnabled\": true, \r\n        \"isAccountNonExpired\": true, \r\n        \"isAccountNonLocked\": true, \r\n        \"isCredentialsNonExpired\": true \r\n    }\r\n }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/user-service/api/users/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"users",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Credential V2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"credentialId\": {{credentialId}},\r\n    \"username\": \"johndoe2\", \r\n    \"password\": \"password2\", \r\n    \"roleBasedAuthority\": \"ROLE_USER\", \r\n    \"isEnabled\": true, \r\n    \"isAccountNonExpired\": true, \r\n    \"isAccountNonLocked\": true, \r\n    \"isCredentialsNonExpired\": true, \r\n    \"user\" :{\r\n        \"userId\": \"{{userId}}\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/user-service/api/credentials",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"credentials"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get created user V2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user-service/api/users/{{userId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Category V2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"category_id\", response.categoryId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"categoryTitle\": \"Electrodomesticos\",\r\n    \"imageUrl\": \"{{$randomUrl}}\",\r\n    \"parentCategory\": {\r\n        \"categoryId\": 1,\r\n        \"categoryTitle\": \"Casas\",\r\n        \"imageUrl\": null\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/product-service/api/categories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"categories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Product V2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"product_id\", response.productId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": " { \r\n    \"productTitle\": \"Samsung ultra cooler\", \r\n    \"imageUrl\": \"{{$randomUrl}}\", \r\n    \"sku\": \"{{$randomAlphaNumeric}}\",\r\n    \"priceUnit\": {{$randomPrice}},\r\n    \"quantity\": {{$randomInt}},\r\n    \"category\": {\r\n        \"categoryId\": {{category_id}}\r\n    }\r\n    \r\n }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/product-service/api/products",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"products"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get category V2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/product-service/api/categories/{{category_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"categories",
+								"{{category_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product Copy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/product-service/api/products/{{product_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"products",
+								"{{product_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Carrito",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"cart_id\", response.cartId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"userId\": {{userId}}\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/order-service/api/carts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order-service",
+								"api",
+								"carts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Carrito",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/order-service/api/carts/{{cart_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order-service",
+								"api",
+								"carts",
+								"{{cart_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"order_id\", response.orderId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"orderDate\": \"23-05-2025__02:05:55:547092\",\r\n    \"orderDesc\": \"{{$randomLoremWord}}\",\r\n    \"orderFee\": {{$randomPrice}},\r\n    \"cart\": {\r\n        \"cartId\": {{cart_id}},\r\n        \"userId\": {{userId}}\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/order-service/api/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order-service",
+								"api",
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/order-service/api/orders/{{order_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order-service",
+								"api",
+								"orders",
+								"{{order_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"payment_id\", response.paymentId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"isPayed\": false,\r\n    \"paymentStatus\": \"NOT_STARTED\",\r\n    \"order\": {\r\n        \"orderId\": {{order_id}}\r\n    }\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/payment-service/api/payments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment-service",
+								"api",
+								"payments"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payment-service/api/payments/{{payment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment-service",
+								"api",
+								"payments",
+								"{{payment_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Favourite",
+			"item": [
+				{
+					"name": "Create User V3",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"userId\", response.userId);\r",
+									"pm.collectionVariables.set(\"credentialId\", response.credential.credentialId);\r",
+									"\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \r\n    \"firstName\": \"Camilo\", \r\n    \"lastName\": \"Ortega\", \r\n    \"imageUrl\": \"{{$randomUrl}}\", \r\n    \"email\": \"{{$randomEmail}}\",\r\n    \"phone\": \"{{$randomPhoneNumber}}\",\r\n    \"addressDtos\": [\r\n        {\r\n            \"fullAddress\": \"calle 13 b\", \r\n            \"postalCode\": \"760054\", \r\n            \"city\": \"Cali\"\r\n        }\r\n    ], \r\n    \"credential\": { \r\n        \"username\": \"johndoe3\", \r\n        \"password\": \"password3\", \r\n        \"roleBasedAuthority\": \"ROLE_USER\", \r\n        \"isEnabled\": true, \r\n        \"isAccountNonExpired\": true, \r\n        \"isAccountNonLocked\": true, \r\n        \"isCredentialsNonExpired\": true \r\n    }\r\n }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/user-service/api/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Credential V3",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"credentialId\": {{credentialId}},\r\n    \"username\": \"johndoe3\", \r\n    \"password\": \"password3\", \r\n    \"roleBasedAuthority\": \"ROLE_USER\", \r\n    \"isEnabled\": true, \r\n    \"isAccountNonExpired\": true, \r\n    \"isAccountNonLocked\": true, \r\n    \"isCredentialsNonExpired\": true, \r\n    \"user\" :{\r\n        \"userId\": \"{{userId}}\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/user-service/api/credentials",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"credentials"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Category V3",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"category_id\", response.categoryId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"categoryTitle\": \"Mascotas\",\r\n    \"imageUrl\": \"{{$randomUrl}}\",\r\n    \"parentCategory\": {\r\n        \"categoryId\": 1,\r\n        \"categoryTitle\": \"Casas\",\r\n        \"imageUrl\": null\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/product-service/api/categories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"categories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Product V3",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let response = pm.response.json();\r",
+									"\r",
+									"pm.collectionVariables.set(\"product_id\", response.productId);\r",
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": " { \r\n    \"productTitle\": \"Casa gatuna\", \r\n    \"imageUrl\": \"{{$randomUrl}}\", \r\n    \"sku\": \"{{$randomAlphaNumeric}}\",\r\n    \"priceUnit\": {{$randomPrice}},\r\n    \"quantity\": {{$randomInt}},\r\n    \"category\": {\r\n        \"categoryId\": {{category_id}}\r\n    }\r\n    \r\n }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/product-service/api/products",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"products"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/product-service/api/products/{{product_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product-service",
+								"api",
+								"products",
+								"{{product_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Agregar Favorito",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"userId\": \"{{userId}}\",\r\n  \"productId\": \"{{product_id}}\",\r\n  \"likeDate\": \"10-05-2025__12:30:00:000000\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/favourite-service/api/favourites",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"favourite-service",
+								"api",
+								"favourites"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get favorito",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"userId\": \"{{userId}}\",\r\n  \"productId\": \"{{product_id}}\",\r\n  \"likeDate\": \"10-05-2025__12:30:00:000000\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/favourite-service/api/favourites/find",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"favourite-service",
+								"api",
+								"favourites",
+								"find"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User delete",
+			"item": [
+				{
+					"name": "Delete user",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (OK)\", function () {\r",
+									"    pm.expect(pm.response.code).equals(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user-service/api/users/{{userId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check delete",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 500 Internal Server Error\", function () {\r",
+									"    pm.expect(pm.response.code).equals(500);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/user-service/api/users/{{userId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user-service",
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "api-gateway:8080",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "credentialId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "category_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "car_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "payment_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "cart_id",
+			"value": ""
+		}
+	]
+}
