@@ -19,27 +19,42 @@ stages:
 # UNIT & INTEGRATION TESTS
 # -----------------------------
 - stage: Tests
-  displayName: 'Run Unit and Integration Tests'
+  displayName: 'Run Tests and Coverage for All Services'
   jobs:
-  - job: RunTests
-    pool:
-      vmImage: 'windows-latest'
-    steps:
-    - checkout: self
-    - task: PowerShell@2
-      displayName: 'Run Unit and Integration Tests'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "🏃 Running Unit Tests"
-          cd user-service
-          .\mvnw.cmd test -Dtest=*ApplicationTests*
-          
-          Write-Host "🏃 Running Integration Tests"
-          .\mvnw.cmd test -Dtest=*ResourceIntegrationTest
+    - job: RunAllTests
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - checkout: self
 
-    - task: PublishTestResults@2
-      inputs:
-        testResultsFiles: '**/surefire-reports/*.xml'
-        testRunTitle: 'Unit and Integration Tests'
+        # Ejecuta todos los tests (unitarios, integración, etc.) y cobertura
+        - task: Maven@3
+          displayName: 'Run Tests and Generate Coverage'
+          inputs:
+            mavenPomFile: 'pom.xml'  # pom padre que llama a todos los módulos
+            goals: 'clean verify'    # JaCoCo se ejecuta en fase verify
+            # ⚠️ No ignores fallos
+            # options: '-Dmaven.test.failure.ignore=true'  <- Elimina esta línea
+            publishJUnitTestResults: true
+            testResultsFiles: '**/surefire-reports/TEST-*.xml'
+            javaHomeOption: 'JDKVersion'
+            jdkVersionOption: '1.11'
+            mavenVersionOption: 'Default'
+            mavenAuthenticateFeed: false
+            effectivePomSkip: false
 
+        # Publica el resumen de cobertura JaCoCo
+        - task: PublishCodeCoverageResults@1
+          displayName: 'Publish Code Coverage Report'
+          inputs:
+            codeCoverageTool: 'JaCoCo'
+            summaryFileLocation: '**/target/site/jacoco/jacoco.xml'
+            reportDirectory: '**/target/site/jacoco'
+
+        # Publica el reporte HTML como artefacto descargable
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish HTML Coverage Report'
+          inputs:
+            pathToPublish: '$(System.DefaultWorkingDirectory)'
+            artifactName: 'CodeCoverageReport'
+            publishLocation: 'Container'
