@@ -13,6 +13,8 @@ variables:
     value: 'ecommerce'
   - name: zapInstallDir
     value: '$(Agent.ToolsDirectory)/zap'
+  - name: nginxServiceName
+    value: 'nginx-proxy'
 
 stages:
 
