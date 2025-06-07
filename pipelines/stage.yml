@@ -248,37 +248,35 @@ stages:
 - stage: GetNginxIP
   displayName: 'Obtener IP pública de nginx-proxy'
   jobs:
-    - job: GetNginxServiceIP
-      displayName: 'Obtener IP del servicio nginx'
+    - job: CaptureNginxIP
+      displayName: 'Capturar IP del servicio nginx'
       pool:
         vmImage: 'ubuntu-latest'
       steps:
         - task: AzureCLI@2
-          displayName: 'Login to Azure and Get AKS Credentials'
+          displayName: 'Login to Azure y obtener credenciales del clúster'
           inputs:
-            azureSubscription: '$(AZURE_ACCOUNT)'  # Asegúrate de tener definida esta conexión en tu pipeline
+            azureSubscription: '$(AZURE_ACCOUNT)'
             scriptType: bash
             scriptLocation: inlineScript
             inlineScript: |
-              echo "Obteniendo credenciales de AKS..."
               az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
 
-              echo "Esperando a que el servicio nginx tenga IP..."
-              for i in {1..10}; do
-                IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-                if [[ -n "$IP" ]]; then
-                  echo "IP pública de nginx: $IP"
-                  echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
-                  break
-                else
-                  echo "Aún sin IP, reintentando en 10 segundos..."
-                  sleep 10
-                fi
-              done
-
         - script: |
-            echo "La IP pública de nginx-proxy es: $(nginxPublicIP)"
-          displayName: 'Imprimir IP pública obtenida'
+            echo "Esperando IP pública del servicio nginx..."
+            for i in {1..10}; do
+              IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+              if [[ -n "$IP" ]]; then
+                echo "IP pública obtenida: $IP"
+                echo "##vso[task.setvariable variable=NGINX_PUBLIC_IP;isOutput=true]$IP"
+                break
+              else
+                echo "IP aún no disponible, reintentando en 10 segundos..."
+                sleep 10
+              fi
+            done
+          displayName: 'Capturar IP pública del nginx'
+          name: CaptureIP
 
 
 # -----------------------------
@@ -288,45 +286,49 @@ stages:
   displayName: 'Run E2E Tests with Public IP'
   dependsOn: GetNginxIP
   condition: succeeded()
+  variables:
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
-  - job: E2E
-    displayName: 'E2E Tests'
-    pool:
-      vmImage: 'windows-latest'    
-    steps:
-    - checkout: self
-    
-    # Instalar Node.js
-    - task: NodeTool@0
-      displayName: 'Install Node.js'
-      inputs:
-        versionSpec: '18.x'
-    
-    # Instalar Newman
-    - task: PowerShell@2
-      displayName: 'Install Newman'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "📦 Installing Newman..."
-          npm install -g newman
-          Write-Host "✅ Newman installed successfully"
-          newman --version
-    
-    - task: PowerShell@2
-      displayName: 'Run Postman E2E Tests'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
-          $baseUrl = $baseUrl = "http://$(nginxPublicIP)"
-          Write-Host "🔗 Base URL: $baseUrl"
-          powershell -ExecutionPolicy Bypass -File postman-collections\run-all-tests.ps1 -BaseUrl $baseUrl
+    - job: E2E
+      displayName: 'E2E Tests'
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - checkout: self
 
-    - task: PublishBuildArtifacts@1
-      inputs:
-        pathToPublish: 'newman-results'
-        artifactName: 'e2e-test-results'
+        # Instalar Node.js
+        - task: NodeTool@0
+          displayName: 'Install Node.js'
+          inputs:
+            versionSpec: '18.x'
+
+        # Instalar Newman
+        - task: PowerShell@2
+          displayName: 'Install Newman'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "📦 Installing Newman..."
+              npm install -g newman
+              Write-Host "✅ Newman installed successfully"
+              newman --version
+
+        # Ejecutar pruebas E2E
+        - task: PowerShell@2
+          displayName: 'Run Postman E2E Tests'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
+              $baseUrl = "http://$(nginxPublicIP)"
+              Write-Host "🔗 Base URL: $baseUrl"
+              powershell -ExecutionPolicy Bypass -File postman-collections\run-all-tests.ps1 -BaseUrl $baseUrl
+
+        # Publicar resultados de pruebas
+        - task: PublishBuildArtifacts@1
+          inputs:
+            pathToPublish: 'newman-results'
+            artifactName: 'e2e-test-results'
 
 # -----------------------------
 # LOAD TESTING
@@ -335,43 +337,47 @@ stages:
   displayName: 'Run Load Tests with Locust'
   dependsOn: GetNginxIP
   condition: succeeded()
+  variables:
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
-  - job: Load
-    displayName: 'Load Testing with Locust'
-    pool:
-      vmImage: 'windows-latest'    
-    steps:
-    - checkout: self
-    
-    # Instalar Python
-    - task: UsePythonVersion@0
-      displayName: 'Install Python'
-      inputs:
-        versionSpec: '3.9'
-        addToPath: true
-    
-    # Instalar dependencias de Locust
-    - task: PowerShell@2
-      displayName: 'Install Locust Dependencies'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "📦 Installing Locust and dependencies..."
-          python -m pip install --upgrade pip
-          pip install -r load-testing/requirements.txt
-          Write-Host "✅ Locust dependencies installed successfully"
-          python -m locust --version
-    
-    - task: PowerShell@2
-      displayName: 'Run Locust Load Tests'
-      inputs:
-        targetType: 'inline'
-        script: |
-          Write-Host "🌐 Using Public IP: $(publicIp)"
-          $env:PUBLIC_IP = "$(nginxPublicIP)"
-          powershell -ExecutionPolicy Bypass -File load-testing\run-locust.ps1
+    - job: Load
+      displayName: 'Load Testing with Locust'
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - checkout: self
 
-    - task: PublishBuildArtifacts@1
-      inputs:
-        pathToPublish: 'load-testing/resultados-carga'
-        artifactName: 'locust-load-results'
+        # Instalar Python
+        - task: UsePythonVersion@0
+          displayName: 'Install Python'
+          inputs:
+            versionSpec: '3.9'
+            addToPath: true
+
+        # Instalar dependencias de Locust
+        - task: PowerShell@2
+          displayName: 'Install Locust Dependencies'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "📦 Installing Locust and dependencies..."
+              python -m pip install --upgrade pip
+              pip install -r load-testing/requirements.txt
+              Write-Host "✅ Locust dependencies installed successfully"
+              python -m locust --version
+
+        # Ejecutar pruebas de carga
+        - task: PowerShell@2
+          displayName: 'Run Locust Load Tests'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
+              $env:PUBLIC_IP = "$(nginxPublicIP)"
+              powershell -ExecutionPolicy Bypass -File load-testing\run-locust.ps1
+
+        # Publicar resultados
+        - task: PublishBuildArtifacts@1
+          inputs:
+            pathToPublish: 'load-testing/resultados-carga'
+            artifactName: 'locust-load-results'
