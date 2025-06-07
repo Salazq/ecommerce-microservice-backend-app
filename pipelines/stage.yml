@@ -311,9 +311,7 @@ stages:
               Write-Host "📦 Installing Newman..."
               npm install -g newman
               Write-Host "✅ Newman installed successfully"
-              newman --version
-
-        # Ejecutar pruebas E2E
+              newman --version        # Ejecutar pruebas E2E
         - task: PowerShell@2
           displayName: 'Run Postman E2E Tests'
           inputs:
@@ -322,7 +320,7 @@ stages:
               Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
               $baseUrl = "http://$(nginxPublicIP)"
               Write-Host "🔗 Base URL: $baseUrl"
-              powershell -ExecutionPolicy Bypass -File postman-collections\run-all-tests.ps1 -BaseUrl $baseUrl
+              powershell -ExecutionPolicy Bypass -File run-all-tests.ps1 -BaseUrl $baseUrl
 
         # Publicar resultados de pruebas
         - task: PublishBuildArtifacts@1
