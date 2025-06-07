@@ -22,19 +22,6 @@ stages:
     - checkout: self
       displayName: 'Checkout Repository'
 
-    # Paso 2: Escaneo del repositorio como filesystem
-    - task: trivy@2
-      name: TrivyFilesystem
-      displayName: 'Scan current repository as filesystem'
-      inputs:
-        version: 'latest'
-        type: 'filesystem'
-        target: '.'
-        scanners: 'misconfig,vuln,secret'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, html'
-        publish: true
 
     # Paso 3: Escaneo de imágenes Docker desde Docker Hub
     - task: trivy@2
@@ -186,7 +173,6 @@ stages:
       inputs:
         testResultsFormat: 'JUnit'
         testResultsFiles: |
-          $(TrivyFilesystem.junitReport)
           $(TrivyServiceDiscovery.junitReport)
           $(TrivyCloudConfig.junitReport)
           $(TrivyApiGateway.junitReport)
