@@ -53,8 +53,8 @@ stages:
 
         # Publica el reporte HTML como artefacto descargable
         - task: PublishBuildArtifacts@1
-          displayName: 'Publish HTML Coverage Report'
+          displayName: 'Publish HTML Coverage Reports Only'
           inputs:
-            pathToPublish: '$(System.DefaultWorkingDirectory)'
+            pathToPublish: '$(System.DefaultWorkingDirectory)/**/target/site/jacoco'
             artifactName: 'CodeCoverageReport'
             publishLocation: 'Container'
