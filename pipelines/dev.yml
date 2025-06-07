@@ -7,8 +7,28 @@ variables:
   aksClusterName: 'dev-aks-cluster' # Replace with your AKS cluster name
   # Kubernetes namespace
   kubernetesNamespace: 'ecommerce'
+  zapInstallDir: '$(Agent.ToolsDirectory)/zap' # Define a directory for ZAP installation
 
 stages:
+- stage: InstallOwaspZap
+  displayName: 'Install OWASP ZAP'
+  jobs:
+  - job: InstallZap
+    displayName: 'Install ZAP'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      - script: |
+          echo "Downloading OWASP ZAP..."
+          wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz -P /tmp
+          echo "Installing OWASP ZAP..."
+          mkdir -p $(zapInstallDir)
+          tar -xzf /tmp/ZAP_2.14.0_Linux.tar.gz -C $(zapInstallDir) --strip-components=1
+          echo "OWASP ZAP installed in $(zapInstallDir)"
+          echo "##vso[task.setvariable variable=zapInstallDir;isOutput=true]$(zapInstallDir)"
+        name: ZapInstallation
+        displayName: 'Download and Install OWASP ZAP'
+
 - stage: Deploy
   displayName: 'Deploy to AKS'
   jobs:
@@ -192,3 +212,64 @@ stages:
               command: 'get'
               arguments: 'services -n $(kubernetesNamespace)'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
+- stage: GetNginxIP
+  displayName: 'Obtener IP pública de nginx-proxy'
+  jobs:
+    - job: GetNginxServiceIP
+      displayName: 'Obtener IP del servicio nginx'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: AzureCLI@2
+          displayName: 'Login to Azure and Get AKS Credentials'
+          inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'  # Asegúrate de tener definida esta conexión en tu pipeline
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              echo "Obteniendo credenciales de AKS..."
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+
+              echo "Esperando a que el servicio nginx tenga IP..."
+              for i in {1..10}; do
+                IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+                if [[ -n "$IP" ]]; then
+                  echo "IP pública de nginx: $IP"
+                  echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
+                  break
+                else
+                  echo "Aún sin IP, reintentando en 10 segundos..."
+                  sleep 10
+                fi
+              done
+
+        - script: |
+            echo "La IP pública de nginx-proxy es: $(nginxPublicIP)"
+          displayName: 'Imprimir IP pública obtenida'
+
+- stage: SecurityScan
+  displayName: 'Perform OWASP ZAP Security Scan'
+  dependsOn:
+    - GetNginxIP
+  jobs:
+    - job: ZapScan
+      displayName: 'Run ZAP Scan on Nginx IP'
+      pool:
+        vmImage: 'ubuntu-latest'
+      variables:
+        nginxPublicIP: $[ stageDependencies.GetNginxIP.GetNginxServiceIP.outputs['SetNginxIP.nginxPublicIP'] ] # Accessing output variable
+        zapInstallDir: $[ stageDependencies.InstallOwaspZap.InstallZap.outputs['ZapInstallation.zapInstallDir'] ]
+      steps:
+        - script: |
+            echo "Starting OWASP ZAP baseline scan on http://$(nginxPublicIP)"
+            cd $(zapInstallDir)
+            ./zap.sh -cmd -quickurl http://$(nginxPublicIP) -quickprogress -baselinescan -config api.disablekey=true -config scanner.attackOnStart=true -config view.mode=attack -report $(Build.ArtifactStagingDirectory)/zap_report.html
+            echo "ZAP Scan Complete. Report generated at $(Build.ArtifactStagingDirectory)/zap_report.html"
+          displayName: 'Run OWASP ZAP Baseline Scan'
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+            ArtifactName: 'ZAPScanReport'
+            publishLocation: 'Container'
+          displayName: 'Publish ZAP Scan Report'
