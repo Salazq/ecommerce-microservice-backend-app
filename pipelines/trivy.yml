@@ -33,7 +33,7 @@ stages:
         scanners: 'misconfig,vuln,secret'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, html, junit'
+        reports: 'github, html'
         publish: true
 
     # Paso 3: Escaneo de imágenes Docker desde Docker Hub
@@ -47,7 +47,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -60,7 +60,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -73,7 +73,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -86,7 +86,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -99,7 +99,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -112,7 +112,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -125,7 +125,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -138,7 +138,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -151,7 +151,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -164,7 +164,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     - task: trivy@2
@@ -177,7 +177,7 @@ stages:
         scanners: 'vuln,misconfig'
         ignoreUnfixed: true
         ignoreScanErrors: true
-        reports: 'github, junit, sarif'
+        reports: 'github, sarif'
         publish: true
 
     # Paso 4: Publicar resultados de tests
