@@ -215,37 +215,35 @@ stages:
 - stage: GetNginxIP
   displayName: 'Obtener IP pública de nginx-proxy'
   jobs:
-    - job: GetNginxServiceIP
-      displayName: 'Obtener IP del servicio nginx'
+    - job: CaptureNginxIP
+      displayName: 'Capturar IP del servicio nginx'
       pool:
         vmImage: 'ubuntu-latest'
       steps:
         - task: AzureCLI@2
-          displayName: 'Login to Azure and Get AKS Credentials'
+          displayName: 'Login to Azure y obtener credenciales del clúster'
           inputs:
-            azureSubscription: '$(AZURE_ACCOUNT)'  # Asegúrate de tener definida esta conexión en tu pipeline
+            azureSubscription: '$(AZURE_ACCOUNT)'
             scriptType: bash
             scriptLocation: inlineScript
             inlineScript: |
-              echo "Obteniendo credenciales de AKS..."
               az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
 
-              echo "Esperando a que el servicio nginx tenga IP..."
-              for i in {1..10}; do
-                IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-                if [[ -n "$IP" ]]; then
-                  echo "IP pública de nginx: $IP"
-                  echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
-                  break
-                else
-                  echo "Aún sin IP, reintentando en 10 segundos..."
-                  sleep 10
-                fi
-              done
-
         - script: |
-            echo "La IP pública de nginx-proxy es: $(nginxPublicIP)"
-          displayName: 'Imprimir IP pública obtenida'
+            echo "Esperando IP pública del servicio nginx..."
+            for i in {1..10}; do
+              IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+              if [[ -n "$IP" ]]; then
+                echo "IP pública obtenida: $IP"
+                echo "##vso[task.setvariable variable=NGINX_PUBLIC_IP;isOutput=true]$IP"
+                break
+              else
+                echo "IP aún no disponible, reintentando en 10 segundos..."
+                sleep 10
+              fi
+            done
+          displayName: 'Capturar IP pública del nginx'
+          name: CaptureIP
 
 - stage: SecurityScan
   displayName: 'Perform OWASP ZAP Security Scan'
@@ -257,7 +255,7 @@ stages:
       pool:
         vmImage: 'ubuntu-latest'
       variables:
-        nginxPublicIP: $[ stageDependencies.GetNginxIP.GetNginxServiceIP.outputs['SetNginxIP.nginxPublicIP'] ] # Accessing output variable
+        nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ] # Accessing output variable
         zapInstallDir: $[ stageDependencies.InstallOwaspZap.InstallZap.outputs['ZapInstallation.zapInstallDir'] ]
       steps:
         - script: |
