@@ -286,7 +286,7 @@ stages:
 # -----------------------------
 - stage: E2ETests
   displayName: 'Run E2E Tests with Public IP'
-  dependsOn: Deploy
+  dependsOn: GetNginxIP
   condition: succeeded()
   jobs:
   - job: E2E
@@ -333,7 +333,7 @@ stages:
 # -----------------------------
 - stage: LoadTests
   displayName: 'Run Load Tests with Locust'
-  dependsOn: Deploy
+  dependsOn: GetNginxIP
   condition: succeeded()
   jobs:
   - job: Load
