@@ -1,0 +1,178 @@
+# Pipeline de Azure DevOps para Build y Análisis de Seguridad con Trivy
+# Construye todas las imágenes Docker de los microservicios y las analiza con Trivy
+
+trigger:
+- develop
+- stage
+- master
+
+variables:
+  - group: variable-group-taller
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  - name: containerRegistry
+    value: 'salazq'
+  - name: dockerRegistryServiceConnection
+    value: 'dockerhub-connection'
+  - name: tag
+    value: '$(Build.BuildId)'
+
+stages:
+- stage: Build
+  displayName: 'Build and Security Scan'
+  jobs:
+  - job: BuildAndScan
+    displayName: 'Build Microservices and Trivy Scan'
+    pool:
+      vmImage: $(vmImageName)
+    strategy:
+      matrix:
+        service-discovery:
+          serviceName: 'service-discovery'
+          dockerfilePath: 'service-discovery/Dockerfile'
+        cloud-config:
+          serviceName: 'cloud-config'
+          dockerfilePath: 'cloud-config/Dockerfile'
+        api-gateway:
+          serviceName: 'api-gateway'
+          dockerfilePath: 'api-gateway/Dockerfile'
+        proxy-client:
+          serviceName: 'proxy-client'
+          dockerfilePath: 'proxy-client/Dockerfile'
+        user-service:
+          serviceName: 'user-service'
+          dockerfilePath: 'user-service/Dockerfile'
+        product-service:
+          serviceName: 'product-service'
+          dockerfilePath: 'product-service/Dockerfile'
+        order-service:
+          serviceName: 'order-service'
+          dockerfilePath: 'order-service/Dockerfile'
+        payment-service:
+          serviceName: 'payment-service'
+          dockerfilePath: 'payment-service/Dockerfile'
+        shipping-service:
+          serviceName: 'shipping-service'
+          dockerfilePath: 'shipping-service/Dockerfile'
+        favourite-service:
+          serviceName: 'favourite-service'
+          dockerfilePath: 'favourite-service/Dockerfile'
+        nginx:
+          serviceName: 'nginx'
+          dockerfilePath: 'nginx/Dockerfile'
+    steps:
+    # Paso 1: Checkout del código
+    - checkout: self
+      displayName: 'Checkout Repository'
+
+    # Paso 2: Setup de Java para servicios que lo requieren
+    - task: JavaToolInstaller@0
+      displayName: 'Setup Java 11'
+      inputs:
+        versionSpec: '11'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
+      condition: ne(variables['serviceName'], 'nginx')
+
+    # Paso 3: Build con Maven para servicios Java
+    - task: Maven@4
+      displayName: 'Maven Build - $(serviceName)'
+      inputs:
+        mavenPomFile: '$(serviceName)/pom.xml'
+        goals: 'clean package'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.11'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: false
+        options: '-DskipTests=true'
+      condition: ne(variables['serviceName'], 'nginx')
+
+    # Paso 4: Build de la imagen Docker
+    - task: Docker@2
+      displayName: 'Build Docker Image - $(serviceName)'
+      inputs:
+        command: 'build'
+        repository: '$(containerRegistry)/$(serviceName)'
+        dockerfile: '$(dockerfilePath)'
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        tags: |
+          $(tag)
+          latest
+        buildContext: '$(serviceName)'
+      condition: ne(variables['serviceName'], 'nginx')
+
+    # Paso 4b: Build especial para nginx (no tiene Maven)
+    - task: Docker@2
+      displayName: 'Build Docker Image - nginx'
+      inputs:
+        command: 'build'
+        repository: '$(containerRegistry)/nginx'
+        dockerfile: 'nginx/Dockerfile'
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        tags: |
+          $(tag)
+          latest
+        buildContext: 'nginx'
+      condition: eq(variables['serviceName'], 'nginx')
+
+    # Paso 5: Instalar Trivy
+    - task: Bash@3
+      displayName: 'Install Trivy'
+      inputs:
+        targetType: 'inline'
+        script: |
+          sudo apt-get update
+          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy -y
+          trivy --version
+
+    # Paso 6: Escaneo de Vulnerabilidades con Trivy
+    - task: Bash@3
+      displayName: 'Trivy Security Scan - $(serviceName)'
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Escaneando imagen: $(containerRegistry)/$(serviceName):$(tag)"
+          
+          # Crear directorio para reportes
+          mkdir -p $(Agent.TempDirectory)/trivy-reports
+          
+          # Escaneo de vulnerabilidades
+          trivy image \
+            --format table \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 0 \
+            $(containerRegistry)/$(serviceName):$(tag) | tee $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.txt
+          
+          # Generar reporte en formato JSON para análisis posterior
+          trivy image \
+            --format json \
+            --severity HIGH,CRITICAL,MEDIUM \
+            --ignore-unfixed \
+            --exit-code 0 \
+            --output $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.json \
+            $(containerRegistry)/$(serviceName):$(tag)
+          
+          # Escaneo de configuración de la imagen
+          trivy config \
+            --format table \
+            --exit-code 0 \
+            $(dockerfilePath) | tee $(Agent.TempDirectory)/trivy-reports/$(serviceName)-config-report.txt
+          
+          echo "Escaneo completado para $(serviceName)"
+
+    # Paso 7: Publicar reportes de Trivy como artefactos
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Trivy Reports - $(serviceName)'
+      inputs:
+        pathToPublish: '$(Agent.TempDirectory)/trivy-reports'
+        artifactName: 'trivy-security-reports-$(serviceName)'
+        publishLocation: 'Container'
