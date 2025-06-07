@@ -322,12 +322,6 @@ stages:
               Write-Host "🔗 Base URL: $baseUrl"
               powershell -ExecutionPolicy Bypass -File run-all-tests.ps1 -BaseUrl $baseUrl
 
-        # Publicar resultados de pruebas
-        - task: PublishBuildArtifacts@1
-          inputs:
-            pathToPublish: 'newman-results'
-            artifactName: 'e2e-test-results'
-
 # -----------------------------
 # LOAD TESTING
 # -----------------------------
