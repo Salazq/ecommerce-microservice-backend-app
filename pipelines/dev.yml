@@ -2,12 +2,17 @@ trigger:
   none
 
 variables:
+  - group: variable-group-taller
+  - name: environmentPath
   # AKS Cluster details
-  aksResourceGroup: 'dev-resource-group' # Replace with your resource group name
-  aksClusterName: 'dev-aks-cluster' # Replace with your AKS cluster name
-  # Kubernetes namespace
-  kubernetesNamespace: 'ecommerce'
-  zapInstallDir: '$(Agent.ToolsDirectory)/zap' # Define a directory for ZAP installation
+  - name: aksResourceGroup
+    value: 'dev-resource-group'
+  - name: aksClusterName
+    value: 'dev-aks-cluster'
+  - name: kubernetesNamespace
+    value: 'ecommerce'
+  - name: zapInstallDir
+    value: '$(Agent.ToolsDirectory)/zap'
 
 stages:
 - stage: InstallOwaspZap
