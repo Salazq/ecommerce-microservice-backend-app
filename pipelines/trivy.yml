@@ -1,5 +1,3 @@
-# Pipeline de Azure DevOps para Build y Análisis de Seguridad con Trivy
-# Construye todas las imágenes Docker de los microservicios y las analiza con Trivy
 
 trigger:
  none
@@ -8,15 +6,15 @@ variables:
   - group: variable-group-taller
   - name: vmImageName
     value: 'ubuntu-latest'
-  - name: tag
-    value: '$(Build.BuildId)'
+  - name: dockerHubUsername
+    value: 'salazq'  # Cambiar por tu usuario de Docker Hub
 
 stages:
-- stage: Build
-  displayName: 'Build and Security Scan'
+- stage: SecurityScan
+  displayName: 'Security Scan with Trivy'
   jobs:
-  - job: BuildAndScan
-    displayName: 'Build Microservices and Trivy Scan'
+  - job: TrivyScans
+    displayName: 'Trivy Security Scans'
     pool:
       vmImage: $(vmImageName)    
     steps:
@@ -24,145 +22,182 @@ stages:
     - checkout: self
       displayName: 'Checkout Repository'
 
-    # Paso 2: Setup de Java
-    - task: JavaToolInstaller@0
-      displayName: 'Setup Java 11'
+    # Paso 2: Escaneo del repositorio como filesystem
+    - task: trivy@2
+      name: TrivyFilesystem
+      displayName: 'Scan current repository as filesystem'
       inputs:
-        versionSpec: '11'
-        jdkArchitectureOption: 'x64'
-        jdkSourceOption: 'PreInstalled'
+        version: 'latest'
+        type: 'filesystem'
+        target: '.'
+        scanners: 'misconfig,vuln,secret'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, html, junit'
+        publish: true
 
-    # Paso 3: Instalar Trivy
-    - task: Bash@3
-      displayName: 'Install Trivy'
+    # Paso 3: Escaneo de imágenes Docker desde Docker Hub
+    - task: trivy@2
+      name: TrivyServiceDiscovery
+      displayName: 'Scan service-discovery image'
       inputs:
-        targetType: 'inline'
-        script: |
-          sudo apt-get update
-          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy -y
-          trivy --version
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/service-discovery:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
 
-    # Paso 4: Build y Scan de todos los microservicios
-    - task: Bash@3
-      displayName: 'Build and Scan All Microservices'
+    - task: trivy@2
+      name: TrivyCloudConfig
+      displayName: 'Scan cloud-config image'
       inputs:
-        targetType: 'inline'
-        script: |
-          # Crear directorio para reportes
-          mkdir -p $(Agent.TempDirectory)/trivy-reports
-          
-          # Definir servicios y sus configuraciones
-          declare -A services=(
-            ["service-discovery"]="java"
-            ["cloud-config"]="java"
-            ["api-gateway"]="java"
-            ["proxy-client"]="java"
-            ["user-service"]="java"
-            ["product-service"]="java"
-            ["order-service"]="java"
-            ["payment-service"]="java"
-            ["shipping-service"]="java"
-            ["favourite-service"]="java"
-            ["nginx"]="nginx"
-          )
-          
-          # Función para construir servicios Java
-          build_java_service() {
-            local service_name=$1
-            echo "=== Construyendo servicio Java: $service_name ==="
-            cd $service_name
-            mvn clean package -DskipTests=true
-            docker build -t $service_name:$(tag) -t $service_name:latest .
-            cd ..
-            echo "Imagen construida: $service_name:$(tag)"
-          }
-          
-          # Función para construir nginx
-          build_nginx_service() {
-            local service_name=$1
-            echo "=== Construyendo servicio nginx: $service_name ==="
-            cd $service_name
-            docker build -t $service_name:$(tag) -t $service_name:latest .
-            cd ..
-            echo "Imagen construida: $service_name:$(tag)"
-          }
-          
-          # Función para escanear con Trivy
-          scan_with_trivy() {
-            local service_name=$1
-            echo "=== Escaneando $service_name con Trivy ==="
-            
-            # Escaneo de vulnerabilidades - imagen local
-            trivy image \
-              --format table \
-              --severity HIGH,CRITICAL \
-              --ignore-unfixed \
-              --exit-code 0 \
-              $service_name:$(tag) | tee $(Agent.TempDirectory)/trivy-reports/$service_name-security-report.txt
-            
-            # Generar reporte en formato JSON para análisis posterior
-            trivy image \
-              --format json \
-              --severity HIGH,CRITICAL,MEDIUM \
-              --ignore-unfixed \
-              --exit-code 0 \
-              --output $(Agent.TempDirectory)/trivy-reports/$service_name-security-report.json \
-              $service_name:$(tag)
-            
-            # Escaneo de configuración de la imagen
-            trivy config \
-              --format table \
-              --exit-code 0 \
-              $service_name/Dockerfile | tee $(Agent.TempDirectory)/trivy-reports/$service_name-config-report.txt
-            
-            # Verificar vulnerabilidades críticas
-            if [ -f "$(Agent.TempDirectory)/trivy-reports/$service_name-security-report.json" ]; then
-              CRITICAL_COUNT=$(jq '.Results[]?.Vulnerabilities // [] | map(select(.Severity == "CRITICAL")) | length' $(Agent.TempDirectory)/trivy-reports/$service_name-security-report.json | jq -s 'add // 0')
-              HIGH_COUNT=$(jq '.Results[]?.Vulnerabilities // [] | map(select(.Severity == "HIGH")) | length' $(Agent.TempDirectory)/trivy-reports/$service_name-security-report.json | jq -s 'add // 0')
-              MEDIUM_COUNT=$(jq '.Results[]?.Vulnerabilities // [] | map(select(.Severity == "MEDIUM")) | length' $(Agent.TempDirectory)/trivy-reports/$service_name-security-report.json | jq -s 'add // 0')
-              
-              echo "=== RESUMEN DE VULNERABILIDADES PARA $service_name ==="
-              echo "Vulnerabilidades CRÍTICAS: $CRITICAL_COUNT"
-              echo "Vulnerabilidades ALTAS: $HIGH_COUNT"
-              echo "Vulnerabilidades MEDIAS: $MEDIUM_COUNT"
-              
-              # Generar warnings si hay vulnerabilidades críticas
-              if [ "$CRITICAL_COUNT" -gt 0 ]; then
-                echo "##vso[task.logissue type=warning]$service_name: Se encontraron $CRITICAL_COUNT vulnerabilidades CRÍTICAS"
-              fi
-              
-              if [ "$HIGH_COUNT" -gt 5 ]; then
-                echo "##vso[task.logissue type=warning]$service_name: Se encontraron $HIGH_COUNT vulnerabilidades ALTAS (umbral recomendado: 5)"
-              fi
-            else
-              echo "##vso[task.logissue type=error]No se pudo generar el reporte JSON para $service_name"
-            fi
-            
-            echo "Escaneo completado para $service_name"
-            echo "================================="
-          }
-          
-          # Procesar todos los servicios
-          for service in "${!services[@]}"; do
-            if [ "${services[$service]}" = "java" ]; then
-              build_java_service $service
-            else
-              build_nginx_service $service
-            fi
-            
-            scan_with_trivy $service
-          done
-          
-          echo "=== CONSTRUCCIÓN Y ESCANEO COMPLETADO PARA TODOS LOS SERVICIOS ==="
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/cloud-config:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
 
-    # Paso 5: Publicar reportes de Trivy como artefactos
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Trivy Reports'
+    - task: trivy@2
+      name: TrivyApiGateway
+      displayName: 'Scan api-gateway image'
       inputs:
-        pathToPublish: '$(Agent.TempDirectory)/trivy-reports'
-        artifactName: 'trivy-security-reports'
-        publishLocation: 'Container'
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/api-gateway:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyProxyClient
+      displayName: 'Scan proxy-client image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/proxy-client:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyUserService
+      displayName: 'Scan user-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/user-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyProductService
+      displayName: 'Scan product-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/product-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyOrderService
+      displayName: 'Scan order-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/order-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyPaymentService
+      displayName: 'Scan payment-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/payment-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyShippingService
+      displayName: 'Scan shipping-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/shipping-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyFavouriteService
+      displayName: 'Scan favourite-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/favourite-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyNginx
+      displayName: 'Scan nginx image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/nginx:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, junit, sarif'
+        publish: true
+
+    # Paso 4: Publicar resultados de tests
+    - task: PublishTestResults@2
+      displayName: 'Publish Trivy Test Results'
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: |
+          $(TrivyFilesystem.junitReport)
+          $(TrivyServiceDiscovery.junitReport)
+          $(TrivyCloudConfig.junitReport)
+          $(TrivyApiGateway.junitReport)
+          $(TrivyProxyClient.junitReport)
+          $(TrivyUserService.junitReport)
+          $(TrivyProductService.junitReport)
+          $(TrivyOrderService.junitReport)
+          $(TrivyPaymentService.junitReport)
+          $(TrivyShippingService.junitReport)
+          $(TrivyFavouriteService.junitReport)
+          $(TrivyNginx.junitReport)
+        searchFolder: '$(Agent.TempDirectory)'
+        testRunTitle: 'Trivy Security Scan Results'
+        publishRunAttachments: false
