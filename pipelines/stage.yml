@@ -25,36 +25,34 @@ stages:
       pool:
         vmImage: 'windows-latest'
       steps:
-        - checkout: self
-
-        # Ejecuta todos los tests (unitarios, integración, etc.) y cobertura
-        - task: Maven@3
+        - checkout: self        # Ejecuta todos los tests (unitarios, integración, etc.) y cobertura
+        - task: Maven@4
           displayName: 'Run Tests and Generate Coverage'
           inputs:
             mavenPomFile: 'pom.xml'  # pom padre que llama a todos los módulos
             goals: 'clean verify'    # JaCoCo se ejecuta en fase verify
-            # ⚠️ No ignores fallos
-            # options: '-Dmaven.test.failure.ignore=true'  <- Elimina esta línea
+            options: '-Dmaven.test.failure.ignore=false -Dspring.profiles.active=test'
             publishJUnitTestResults: true
-            testResultsFiles: '**/surefire-reports/TEST-*.xml'
-            javaHomeOption: 'JDKVersion'
+            testResultsFiles: '**/target/surefire-reports/TEST-*.xml,**/target/failsafe-reports/TEST-*.xml'
+            javaHomeOption: 'JDKVersion' 
             jdkVersionOption: '1.11'
             mavenVersionOption: 'Default'
             mavenAuthenticateFeed: false
-            effectivePomSkip: false
-
-        # Publica el resumen de cobertura JaCoCo
+            effectivePomSkip: false        # Publica solo el reporte agregado de JaCoCo
         - task: PublishCodeCoverageResults@1
-          displayName: 'Publish Code Coverage Report'
+          displayName: 'Publish Aggregate Coverage Report'
+          condition: succeeded()
           inputs:
             codeCoverageTool: 'JaCoCo'
-            summaryFileLocation: '**/target/site/jacoco/jacoco.xml'
-            reportDirectory: '**/target/site/jacoco'
+            summaryFileLocation: 'jacoco-report-aggregation/target/site/jacoco-aggregate/jacoco.xml'
+            reportDirectory: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
+            failIfCoverageEmpty: false
 
-        # Publica el reporte HTML como artefacto descargable
+        # Publica solo el reporte HTML agregado como artefacto descargable
         - task: PublishBuildArtifacts@1
-          displayName: 'Publish HTML Coverage Reports Only'
+          displayName: 'Publish Aggregate Coverage HTML Report'
+          condition: succeeded()
           inputs:
-            pathToPublish: '$(System.DefaultWorkingDirectory)/**/target/site/jacoco'
-            artifactName: 'CodeCoverageReport'
+            pathToPublish: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
+            artifactName: 'AggregateCoverageReport'
             publishLocation: 'Container'
