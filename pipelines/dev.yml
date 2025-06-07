@@ -261,7 +261,6 @@ stages:
         vmImage: 'ubuntu-latest'
       variables:
         nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
-        nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
       steps:
         - script: |
             echo "Downloading and installing OWASP ZAP..."
