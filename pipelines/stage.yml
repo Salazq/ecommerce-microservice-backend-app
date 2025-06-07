@@ -270,15 +270,16 @@ stages:
     pool:
       vmImage: 'windows-latest'
     steps:
-    - checkout: self
+    - checkout: self    
     - task: PowerShell@2
       displayName: 'Run Postman E2E Tests'
       inputs:
         targetType: 'inline'
         script: |
           Write-Host "🌐 Using Public IP: $(publicIp)"
-          $env:PUBLIC_IP = "$(publicIp)"
-          powershell -ExecutionPolicy Bypass -File postman-collections\run-all-tests.ps1
+          $baseUrl = "http://$(publicIp)"
+          Write-Host "🔗 Base URL: $baseUrl"
+          powershell -ExecutionPolicy Bypass -File postman-collections\run-all-tests.ps1 -BaseUrl $baseUrl
 
     - task: PublishBuildArtifacts@1
       inputs:
