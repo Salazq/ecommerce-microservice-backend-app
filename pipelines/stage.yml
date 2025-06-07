@@ -268,9 +268,27 @@ stages:
   - job: E2E
     displayName: 'E2E Tests'
     pool:
-      vmImage: 'windows-latest'
+      vmImage: 'windows-latest'    
     steps:
-    - checkout: self    
+    - checkout: self
+    
+    # Instalar Node.js
+    - task: NodeTool@0
+      displayName: 'Install Node.js'
+      inputs:
+        versionSpec: '18.x'
+    
+    # Instalar Newman
+    - task: PowerShell@2
+      displayName: 'Install Newman'
+      inputs:
+        targetType: 'inline'
+        script: |
+          Write-Host "📦 Installing Newman..."
+          npm install -g newman
+          Write-Host "✅ Newman installed successfully"
+          newman --version
+    
     - task: PowerShell@2
       displayName: 'Run Postman E2E Tests'
       inputs:
@@ -297,9 +315,29 @@ stages:
   - job: Load
     displayName: 'Load Testing with Locust'
     pool:
-      vmImage: 'windows-latest'
+      vmImage: 'windows-latest'    
     steps:
     - checkout: self
+    
+    # Instalar Python
+    - task: UsePythonVersion@0
+      displayName: 'Install Python'
+      inputs:
+        versionSpec: '3.9'
+        addToPath: true
+    
+    # Instalar dependencias de Locust
+    - task: PowerShell@2
+      displayName: 'Install Locust Dependencies'
+      inputs:
+        targetType: 'inline'
+        script: |
+          Write-Host "📦 Installing Locust and dependencies..."
+          python -m pip install --upgrade pip
+          pip install -r load-testing/requirements.txt
+          Write-Host "✅ Locust dependencies installed successfully"
+          python -m locust --version
+    
     - task: PowerShell@2
       displayName: 'Run Locust Load Tests'
       inputs:
