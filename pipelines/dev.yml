@@ -7,7 +7,6 @@ variables:
   aksClusterName: 'dev-aks-cluster' # Replace with your AKS cluster name
   # Kubernetes namespace
   kubernetesNamespace: 'ecommerce'
-  zapInstallDir: '$(Agent.ToolsDirectory)/zap' # Define a directory for ZAP installation
 
 stages:
 - stage: InstallOwaspZap
@@ -19,15 +18,13 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
       - script: |
-          echo "Downloading OWASP ZAP..."
-          wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz -P /tmp
+          echo "Updating package lists..."
+          sudo apt-get update -y
           echo "Installing OWASP ZAP..."
-          mkdir -p $(zapInstallDir)
-          tar -xzf /tmp/ZAP_2.14.0_Linux.tar.gz -C $(zapInstallDir) --strip-components=1
-          echo "OWASP ZAP installed in $(zapInstallDir)"
-          echo "##vso[task.setvariable variable=zapInstallDir;isOutput=true]$(zapInstallDir)"
+          sudo apt-get install -y zaproxy
+          echo "OWASP ZAP installed via apt."
         name: ZapInstallation
-        displayName: 'Download and Install OWASP ZAP'
+        displayName: 'Install OWASP ZAP via apt'
 
 - stage: Deploy
   displayName: 'Deploy to AKS'
@@ -255,13 +252,11 @@ stages:
       pool:
         vmImage: 'ubuntu-latest'
       variables:
-        nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ] # Accessing output variable
-        zapInstallDir: $[ stageDependencies.InstallOwaspZap.InstallZap.outputs['ZapInstallation.zapInstallDir'] ]
+        nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
       steps:
         - script: |
             echo "Starting OWASP ZAP baseline scan on http://$(nginxPublicIP)"
-            cd $(zapInstallDir)
-            ./zap.sh -cmd -quickurl http://$(nginxPublicIP) -quickprogress -baselinescan -config api.disablekey=true -config scanner.attackOnStart=true -config view.mode=attack -report $(Build.ArtifactStagingDirectory)/zap_report.html
+            zaproxy -cmd -quickurl http://$(nginxPublicIP) -quickprogress -baselinescan -config api.disablekey=true -config scanner.attackOnStart=true -config view.mode=attack -report $(Build.ArtifactStagingDirectory)/zap_report.html
             echo "ZAP Scan Complete. Report generated at $(Build.ArtifactStagingDirectory)/zap_report.html"
           displayName: 'Run OWASP ZAP Baseline Scan'
 
