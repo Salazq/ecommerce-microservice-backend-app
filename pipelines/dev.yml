@@ -2,11 +2,19 @@ trigger:
   none
 
 variables:
+  - group: variable-group-taller
+  - name: environmentPath
   # AKS Cluster details
-  aksResourceGroup: 'dev-resource-group' # Replace with your resource group name
-  aksClusterName: 'dev-aks-cluster' # Replace with your AKS cluster name
-  # Kubernetes namespace
-  kubernetesNamespace: 'ecommerce'
+  - name: aksResourceGroup
+    value: 'dev-resource-group'
+  - name: aksClusterName
+    value: 'dev-aks-cluster'
+  - name: kubernetesNamespace
+    value: 'ecommerce'
+  - name: zapInstallDir
+    value: '$(Agent.ToolsDirectory)/zap'
+  - name: nginxServiceName
+    value: 'nginx-proxy'
 
 stages:
 - stage: InstallOwaspZap
@@ -248,12 +256,21 @@ stages:
     - GetNginxIP
   jobs:
     - job: ZapScan
-      displayName: 'Run ZAP Scan on Nginx IP'
+      displayName: 'Install ZAP and Run Security Scan'
       pool:
         vmImage: 'ubuntu-latest'
       variables:
         nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+        nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
       steps:
+        - script: |
+            echo "Downloading and installing OWASP ZAP..."
+            wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz -P /tmp
+            mkdir -p $(zapInstallDir)
+            tar -xzf /tmp/ZAP_2.14.0_Linux.tar.gz -C $(zapInstallDir) --strip-components=1
+            echo "OWASP ZAP installed in $(zapInstallDir)"
+          displayName: 'Install OWASP ZAP'
+
         - script: |
             echo "Starting OWASP ZAP baseline scan on http://$(nginxPublicIP)"
             zaproxy -cmd -quickurl http://$(nginxPublicIP) -quickprogress -baselinescan -config api.disablekey=true -config scanner.attackOnStart=true -config view.mode=attack -report $(Build.ArtifactStagingDirectory)/zap_report.html
