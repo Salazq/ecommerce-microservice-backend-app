@@ -10,12 +10,8 @@ variables:
   - group: variable-group-taller
   - name: vmImageName
     value: 'ubuntu-latest'
-  - name: containerRegistry
-    value: 'salazq'
-  - name: dockerRegistryServiceConnection
-    value: 'dockerhub-connection'
   - name: tag
-    value: '$(Build.BuildId)'
+    value: '1'
 
 stages:
 - stage: Build
@@ -89,34 +85,32 @@ stages:
         effectivePomSkip: false
         sonarQubeRunAnalysis: false
         options: '-DskipTests=true'
-      condition: ne(variables['serviceName'], 'nginx')
-
-    # Paso 4: Build de la imagen Docker
-    - task: Docker@2
+      condition: ne(variables['serviceName'], 'nginx')    # Paso 4: Build de la imagen Docker localmente
+    - task: Bash@3
       displayName: 'Build Docker Image - $(serviceName)'
       inputs:
-        command: 'build'
-        repository: '$(containerRegistry)/$(serviceName)'
-        dockerfile: '$(dockerfilePath)'
-        containerRegistry: '$(dockerRegistryServiceConnection)'
-        tags: |
-          $(tag)
-          latest
-        buildContext: '$(serviceName)'
+        targetType: 'inline'
+        script: |
+          echo "Construyendo imagen local: $(serviceName):$(tag)"
+          cd $(serviceName)
+          docker build -t $(serviceName):$(tag) -t $(serviceName):latest .
+          cd ..
+          echo "Imagen construida: $(serviceName):$(tag)"
+          docker images | grep $(serviceName)
       condition: ne(variables['serviceName'], 'nginx')
 
     # Paso 4b: Build especial para nginx (no tiene Maven)
-    - task: Docker@2
+    - task: Bash@3
       displayName: 'Build Docker Image - nginx'
       inputs:
-        command: 'build'
-        repository: '$(containerRegistry)/nginx'
-        dockerfile: 'nginx/Dockerfile'
-        containerRegistry: '$(dockerRegistryServiceConnection)'
-        tags: |
-          $(tag)
-          latest
-        buildContext: 'nginx'
+        targetType: 'inline'
+        script: |
+          echo "Construyendo imagen local: nginx:$(tag)"
+          cd nginx
+          docker build -t nginx:$(tag) -t nginx:latest .
+          cd ..
+          echo "Imagen construida: nginx:$(tag)"
+          docker images | grep nginx
       condition: eq(variables['serviceName'], 'nginx')
 
     # Paso 5: Instalar Trivy
@@ -131,26 +125,24 @@ stages:
           echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
           sudo apt-get update
           sudo apt-get install trivy -y
-          trivy --version
-
-    # Paso 6: Escaneo de Vulnerabilidades con Trivy
+          trivy --version    # Paso 6: Escaneo de Vulnerabilidades con Trivy
     - task: Bash@3
       displayName: 'Trivy Security Scan - $(serviceName)'
       inputs:
         targetType: 'inline'
         script: |
-          echo "Escaneando imagen: $(containerRegistry)/$(serviceName):$(tag)"
+          echo "Escaneando imagen local: $(serviceName):$(tag)"
           
           # Crear directorio para reportes
           mkdir -p $(Agent.TempDirectory)/trivy-reports
           
-          # Escaneo de vulnerabilidades
+          # Escaneo de vulnerabilidades - imagen local
           trivy image \
             --format table \
             --severity HIGH,CRITICAL \
             --ignore-unfixed \
             --exit-code 0 \
-            $(containerRegistry)/$(serviceName):$(tag) | tee $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.txt
+            $(serviceName):$(tag) | tee $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.txt
           
           # Generar reporte en formato JSON para análisis posterior
           trivy image \
@@ -159,17 +151,51 @@ stages:
             --ignore-unfixed \
             --exit-code 0 \
             --output $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.json \
-            $(containerRegistry)/$(serviceName):$(tag)
+            $(serviceName):$(tag)
           
           # Escaneo de configuración de la imagen
           trivy config \
             --format table \
             --exit-code 0 \
             $(dockerfilePath) | tee $(Agent.TempDirectory)/trivy-reports/$(serviceName)-config-report.txt
-          
-          echo "Escaneo completado para $(serviceName)"
+            echo "Escaneo completado para $(serviceName)"
 
-    # Paso 7: Publicar reportes de Trivy como artefactos
+    # Paso 7: Verificar vulnerabilidades críticas
+    - task: Bash@3
+      displayName: 'Check Critical Vulnerabilities - $(serviceName)'
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Verificar si el reporte JSON existe
+          if [ -f "$(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.json" ]; then
+            # Contar vulnerabilidades críticas
+            CRITICAL_COUNT=$(jq '.Results[]?.Vulnerabilities // [] | map(select(.Severity == "CRITICAL")) | length' $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.json | jq -s 'add // 0')
+            HIGH_COUNT=$(jq '.Results[]?.Vulnerabilities // [] | map(select(.Severity == "HIGH")) | length' $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.json | jq -s 'add // 0')
+            MEDIUM_COUNT=$(jq '.Results[]?.Vulnerabilities // [] | map(select(.Severity == "MEDIUM")) | length' $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.json | jq -s 'add // 0')
+            
+            echo "=== RESUMEN DE VULNERABILIDADES PARA $(serviceName) ==="
+            echo "Vulnerabilidades CRÍTICAS: $CRITICAL_COUNT"
+            echo "Vulnerabilidades ALTAS: $HIGH_COUNT"
+            echo "Vulnerabilidades MEDIAS: $MEDIUM_COUNT"
+            
+            # Generar warnings si hay vulnerabilidades críticas
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "##vso[task.logissue type=warning]$(serviceName): Se encontraron $CRITICAL_COUNT vulnerabilidades CRÍTICAS"
+            fi
+            
+            if [ "$HIGH_COUNT" -gt 5 ]; then
+              echo "##vso[task.logissue type=warning]$(serviceName): Se encontraron $HIGH_COUNT vulnerabilidades ALTAS (umbral recomendado: 5)"
+            fi
+            
+            # Guardar conteos como variables para uso posterior
+            echo "##vso[task.setvariable variable=CRITICAL_VULNS;]$CRITICAL_COUNT"
+            echo "##vso[task.setvariable variable=HIGH_VULNS;]$HIGH_COUNT"
+            echo "##vso[task.setvariable variable=MEDIUM_VULNS;]$MEDIUM_COUNT"
+          else
+            echo "##vso[task.logissue type=error]No se pudo generar el reporte JSON para $(serviceName)"
+          fi
+
+    # Paso 8: Publicar reportes de Trivy como artefactos
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Trivy Reports - $(serviceName)'
       inputs:
