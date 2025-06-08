@@ -23,19 +23,13 @@ spec:
         command: ['sh', '-c', 'until curl -f http://api-gateway:8080/actuator/health; do echo waiting for api-gateway; sleep 5; done']
       containers:
       - name: nginx-proxy
-        image: salazq/nginx-proxy:latest
+        image: salazq/nginx:latest
         imagePullPolicy: Always        
         ports:
         - containerPort: 80
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 30
-          periodSeconds: 30
         readinessProbe:
           httpGet:
-            path: /
+            path: /actuator/health
             port: 80
           initialDelaySeconds: 10
           periodSeconds: 10

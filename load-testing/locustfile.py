@@ -1,10 +1,13 @@
 from locust import HttpUser, task, between
 import json
+import os
 
 class ProxyClientUser(HttpUser):
     wait_time = between(1, 5)
 
-    host = "http://localhost:8080/"    
+    # Usar PUBLIC_IP si está disponible, sino usar localhost
+    public_ip = os.environ.get('PUBLIC_IP', 'localhost')
+    host = f"http://{public_ip}:8080/"
     
     def generate_unique_user_data(self):
         return {

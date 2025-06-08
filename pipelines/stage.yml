@@ -3,19 +3,65 @@ trigger: none
 variables:
   - group: variable-group-taller
   - name: environmentPath
-  # AKS Cluster details
+    value: 'terraform/environments/$(environment)'
   - name: aksResourceGroup
     value: 'dev-resource-group'
   - name: aksClusterName
     value: 'dev-aks-cluster'
   - name: kubernetesNamespace
     value: 'ecommerce'
-  - name: zapInstallDir
-    value: '$(Agent.ToolsDirectory)/zap'
   - name: nginxServiceName
     value: 'nginx-proxy'
 
 stages:
+
+# -----------------------------
+# UNIT & INTEGRATION TESTS
+# -----------------------------
+- stage: Tests
+  displayName: 'Run Tests and Coverage for All Services'
+  jobs:
+    - job: RunAllTests
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - checkout: self        # Ejecuta todos los tests (unitarios, integración, etc.) y cobertura
+        - task: Maven@4
+          displayName: 'Run Tests and Generate Coverage'
+          inputs:
+            mavenPomFile: 'pom.xml'  # pom padre que llama a todos los módulos
+            goals: 'clean verify'    # JaCoCo se ejecuta en fase verify
+            options: '-Dmaven.test.failure.ignore=false -Dspring.profiles.active=test'
+            publishJUnitTestResults: true
+            testResultsFiles: '**/target/surefire-reports/TEST-*.xml,**/target/failsafe-reports/TEST-*.xml'
+            javaHomeOption: 'JDKVersion' 
+            jdkVersionOption: '1.11'
+            mavenVersionOption: 'Default'
+            mavenAuthenticateFeed: false
+            effectivePomSkip: false 
+        
+        - task: PublishTestResults@2
+          inputs:
+            testResultsFormat: 'JUnit'
+            testResultsFiles: '**/target/surefire-reports/TEST-*.xml'
+          
+        - task: PublishCodeCoverageResults@2
+          inputs:
+            summaryFileLocation: 'jacoco-report-aggregation/target/site/jacoco-aggregate/jacoco.xml'
+            pathToSources: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
+
+        # Publica solo el reporte HTML agregado como artefacto descargable
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish Aggregate Coverage HTML Report'
+          condition: succeeded()
+          inputs:
+            pathToPublish: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
+            artifactName: 'AggregateCoverageReport'
+            publishLocation: 'Container'
+
+# -----------------------------
+# DEPLOY STAGE
+# -----------------------------
 - stage: Deploy
   displayName: 'Deploy to AKS'
   jobs:
@@ -199,6 +245,8 @@ stages:
               command: 'get'
               arguments: 'services -n $(kubernetesNamespace)'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+
 - stage: GetNginxIP
   displayName: 'Obtener IP pública de nginx-proxy'
   jobs:
@@ -231,98 +279,99 @@ stages:
             done
           displayName: 'Capturar IP pública del nginx'
           name: CaptureIP
-          
-- stage: ZAPScan
-  displayName: 'Escaneo de Seguridad con OWASP ZAP'
+
+
+# -----------------------------
+# E2E TESTING
+# -----------------------------
+- stage: E2ETests
+  displayName: 'Run E2E Tests with Public IP'
   dependsOn: GetNginxIP
   condition: succeeded()
+  variables:
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
-    - job: RunZapScan
-      displayName: 'Ejecutar OWASP ZAP contra IP pública del Nginx'
+    - job: E2E
+      displayName: 'E2E Tests'
       pool:
-        vmImage: 'ubuntu-latest'
-      variables:
-        NGINX_IP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
+        vmImage: 'windows-latest'
       steps:
-        - task: AzureCLI@2
-          displayName: 'Login to Azure y obtener credenciales del clúster'
+        - checkout: self
+
+        # Instalar Node.js
+        - task: NodeTool@0
+          displayName: 'Install Node.js'
           inputs:
-            azureSubscription: '$(AZURE_ACCOUNT)'
-            scriptType: bash
-            scriptLocation: inlineScript
-            inlineScript: |
-              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
-        
-        - bash: |
-            echo "Instalando OWASP ZAP..."
-            sudo apt-get update
-            sudo apt-get install -y snap
-            sudo snap install zaproxy --classic
-          displayName: 'Instalar OWASP ZAP'
+            versionSpec: '18.x'
 
-        - bash: |
-            echo "Ejecutando escaneo ZAP..."
-            mkdir -p owaspzap
-            IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-            echo "Iniciando escaneo contra http://$IP/user-service/api/users"
-            zaproxy -cmd -quickurl "http://$IP/user-service/api/users" -quickout "$(System.DefaultWorkingDirectory)/owaspzap/report.json" -quickprogress
-          displayName: 'Ejecutar ZAP scan en modo headless'
-
-        - bash: |
-            sudo npm install -g handlebars-cmd
-            cat <<EOF > owaspzap/nunit-template.hbs
-            {{#each site}}
-            <test-run
-                id="2"
-                name="Owasp test"
-                start-time="{{../[@generated]}}"  >
-                <test-suite
-                    id="{{@index}}"
-                    type="Assembly"
-                    name="{{[@name]}}"
-                    result="Failed"
-                    failed="{{alerts.length}}">
-                    <attachments>
-                        <attachment>
-                            <filePath>owaspzap/report.html</filePath>
-                        </attachment>
-                    </attachments>
-                {{#each alerts}}<test-case
-                    id="{{@index}}"
-                    name="{{alert}}"
-                    result="Failed"
-                    fullname="{{alert}}"
-                    time="1">
-                        <failure>
-                                <message>
-                                 <![CDATA[{{{desc}}}]]>
-                            </message>
-                            <stack-trace>
-                                <![CDATA[
-            Solution:
-            {{{solution}}}
-            Reference:
-            {{{reference}}}
-            instances:{{#each instances}}
-            * {{uri}}
-                - {{method}}
-                {{#if evidence}}- {{{evidence}}}{{/if}}
-                                 {{/each}}]]>
-                             </stack-trace>
-                        </failure>
-                </test-case>
-                {{/each}}
-                </test-suite>
-            </test-run>
-            {{/each}}
-            EOF
-          displayName: 'Crear plantilla NUnit para reporte OWASP ZAP'
-
-        - bash: 'handlebars owaspzap/report.json < owaspzap/nunit-template.hbs > owaspzap/test-results.xml'
-          displayName: 'Generar archivo de resultados NUnit'
-
-        - task: PublishTestResults@2
-          displayName: 'Publicar resultados del escaneo'
+        # Instalar Newman
+        - task: PowerShell@2
+          displayName: 'Install Newman'
           inputs:
-            testResultsFormat: 'NUnit'
-            testResultsFiles: 'owaspzap/test-results.xml'
+            targetType: 'inline'
+            script: |
+              Write-Host "📦 Installing Newman..."
+              npm install -g newman
+              Write-Host "✅ Newman installed successfully"
+              newman --version        # Ejecutar pruebas E2E
+        - task: PowerShell@2
+          displayName: 'Run Postman E2E Tests'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
+              $baseUrl = "http://$(nginxPublicIP)"
+              Write-Host "🔗 Base URL: $baseUrl"
+              powershell -ExecutionPolicy Bypass -File run-all-tests.ps1 -BaseUrl $baseUrl
+
+# -----------------------------
+# LOAD TESTING
+# -----------------------------
+- stage: LoadTests
+  displayName: 'Run Load Tests with Locust'
+  dependsOn: GetNginxIP
+  condition: succeeded()
+  variables:
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+  jobs:
+    - job: Load
+      displayName: 'Load Testing with Locust'
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - checkout: self
+
+        # Instalar Python
+        - task: UsePythonVersion@0
+          displayName: 'Install Python'
+          inputs:
+            versionSpec: '3.9'
+            addToPath: true
+
+        # Instalar dependencias de Locust
+        - task: PowerShell@2
+          displayName: 'Install Locust Dependencies'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "📦 Installing Locust and dependencies..."
+              python -m pip install --upgrade pip
+              pip install -r load-testing/requirements.txt
+              Write-Host "✅ Locust dependencies installed successfully"
+              python -m locust --version
+
+        # Ejecutar pruebas de carga
+        - task: PowerShell@2
+          displayName: 'Run Locust Load Tests'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
+              $env:PUBLIC_IP = "$(nginxPublicIP)"
+              powershell -ExecutionPolicy Bypass -File load-testing\run-locust.ps1
+
+        # Publicar resultados
+        - task: PublishBuildArtifacts@1
+          inputs:
+            pathToPublish: 'load-testing/resultados-carga'
+            artifactName: 'locust-load-results'
