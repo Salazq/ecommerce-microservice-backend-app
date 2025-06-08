@@ -413,9 +413,9 @@ stages:
     displayName: 'Run Postman Collections'
     pool:
       vmImage: 'ubuntu-latest'
-    steps:
-    - checkout: self
     
+    steps:
+    # Instalar Newman
     - task: Npm@1
       displayName: 'Install Newman'
       inputs:
@@ -435,7 +435,7 @@ stages:
       inputs:
         collectionFileSource: 'postman-collections'
         Contents: |
-          postman-collections/*.postman_collection.json
+          **/*.postman_collection.json
         environmentSourceType: 'None'
         environmentVariables: |
           baseUrl=$(base_url)
