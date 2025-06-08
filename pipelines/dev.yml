@@ -248,11 +248,11 @@ stages:
         - task: owaspzap@1
           inputs:
             aggressivemode: true
+            scantype: 'targetedScan'
             threshold: '50'
-            targeturl: 'http://$(NGINX_IP)'
+            url: 'http://$(NGINX_IP)'
             port: '80'
           displayName: 'Ejecutar OWASP ZAP Scan'
-
         - bash: |
             sudo npm install -g handlebars-cmd
             cat <<EOF > owaspzap/nunit-template.hbs
