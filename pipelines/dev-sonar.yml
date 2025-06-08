@@ -1,0 +1,41 @@
+trigger: none
+
+variables:
+  - group: variable-group-taller
+  - name: environmentPath
+    value: 'terraform/environments/$(environment)'
+  - name: aksResourceGroup
+    value: 'dev-resource-group'
+  - name: aksClusterName
+    value: 'dev-aks-cluster'
+  - name: kubernetesNamespace
+    value: 'ecommerce'
+stages:
+- stage: sonarqube
+  displayName: sonarqube
+  jobs:
+    - job: sonarqube
+      steps:
+        - task: SonarCloudPrepare@3
+          inputs:
+            SonarQube: 'SonarCloud'
+            organization: 'ecommerce-microservice-backend'
+            scannerMode: 'other'
+            extraProperties: |
+              # Additional properties that will be passed to the scanner,
+              # Put one key=value per line, example:
+              # sonar.exclusions=**/*.bin
+              sonar.projectKey=salazq_ecommerce-microservice-backend-app
+              sonar.projectName=ecommerce-microservice-backend-app
+        - task: Maven@4
+          inputs:
+            azureSubscription: 'Azure for Students(bfc3d097-7e73-40b8-aa34-e70b307c0867)'
+            mavenPomFile: 'pom.xml'
+            options: '-DskipTests'
+            publishJUnitResults: false
+            javaHomeOption: 'JDKVersion'
+            mavenVersionOption: 'Default'
+            mavenAuthenticateFeed: false
+            effectivePomSkip: false
+            sonarQubeRunAnalysis: true
+            sqMavenPluginVersionChoice: 'latest'
