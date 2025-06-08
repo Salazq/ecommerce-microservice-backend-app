@@ -75,10 +75,10 @@ stages:
 - stage: BuildAndPushImages
   displayName: 'Build and Push Docker Images'
   jobs:
-    - job: BuildImages
-      displayName: 'Build and Push All Docker Images'
+    - job: BuildAndPush
+      displayName: 'Build and Push Docker Images'
       pool:
-        vmImage: 'windows-latest'
+        vmImage: 'ubuntu-latest'
       steps:
         - checkout: self
 
