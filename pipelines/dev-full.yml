@@ -79,17 +79,131 @@ stages:
       displayName: 'Build and Push All Docker Images'
       pool:
         vmImage: 'windows-latest'
+      variables:
+        tag: $(Build.BuildId)
       steps:
         - checkout: self
 
-        - task: PowerShell@2
-          displayName: 'Execute build-all.ps1'
+        # cloud-config
+        - task: Docker@2
+          displayName: Build and Push cloud-config
           inputs:
-            targetType: 'filePath'
-            filePath: '$(System.DefaultWorkingDirectory)/build-all.ps1'
-            arguments: "-DockerHubUsername $(dockerHubUsername) -Tag $(tag)"
-            workingDirectory: '$(System.DefaultWorkingDirectory)'
-            pwsh: true
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/cloud-config'
+            command: 'buildAndPush'
+            Dockerfile: 'cloud-config/Dockerfile'
+            buildContext: 'cloud-config/'
+            tags: '$(tag)'
+
+        # service-discovery
+        - task: Docker@2
+          displayName: Build and Push service-discovery
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/service-discovery'
+            command: 'buildAndPush'
+            Dockerfile: 'service-discovery/Dockerfile'
+            buildContext: 'service-discovery/'
+            tags: '$(tag)'
+
+        # api-gateway
+        - task: Docker@2
+          displayName: Build and Push api-gateway
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/api-gateway'
+            command: 'buildAndPush'
+            Dockerfile: 'api-gateway/Dockerfile'
+            buildContext: 'api-gateway/'
+            tags: '$(tag)'
+
+        # proxy-client
+        - task: Docker@2
+          displayName: Build and Push proxy-client
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/proxy-client'
+            command: 'buildAndPush'
+            Dockerfile: 'proxy-client/Dockerfile'
+            buildContext: 'proxy-client/'
+            tags: '$(tag)'
+
+        # order-service
+        - task: Docker@2
+          displayName: Build and Push order-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/order-service'
+            command: 'buildAndPush'
+            Dockerfile: 'order-service/Dockerfile'
+            buildContext: 'order-service/'
+            tags: '$(tag)'
+
+        # product-service
+        - task: Docker@2
+          displayName: Build and Push product-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/product-service'
+            command: 'buildAndPush'
+            Dockerfile: 'product-service/Dockerfile'
+            buildContext: 'product-service/'
+            tags: '$(tag)'
+
+        # user-service
+        - task: Docker@2
+          displayName: Build and Push user-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/user-service'
+            command: 'buildAndPush'
+            Dockerfile: 'user-service/Dockerfile'
+            buildContext: 'user-service/'
+            tags: '$(tag)'
+
+        # shipping-service
+        - task: Docker@2
+          displayName: Build and Push shipping-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/shipping-service'
+            command: 'buildAndPush'
+            Dockerfile: 'shipping-service/Dockerfile'
+            buildContext: 'shipping-service/'
+            tags: '$(tag)'
+
+        # payment-service
+        - task: Docker@2
+          displayName: Build and Push payment-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/payment-service'
+            command: 'buildAndPush'
+            Dockerfile: 'payment-service/Dockerfile'
+            buildContext: 'payment-service/'
+            tags: '$(tag)'
+
+        # favourite-service
+        - task: Docker@2
+          displayName: Build and Push favourite-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/favourite-service'
+            command: 'buildAndPush'
+            Dockerfile: 'favourite-service/Dockerfile'
+            buildContext: 'favourite-service/'
+            tags: '$(tag)'
+
+        # nginx (as reverse proxy or static content)
+        - task: Docker@2
+          displayName: Build and Push nginx
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/nginx'
+            command: 'buildAndPush'
+            Dockerfile: 'nginx/Dockerfile'
+            buildContext: 'nginx/'
+            tags: '$(tag)'
 
 - stage: Deploy
   displayName: 'Deploy to AKS'
