@@ -263,14 +263,6 @@ stages:
         nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
       steps:
         - script: |
-            echo "Downloading and installing OWASP ZAP..."
-            wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz -P /tmp
-            mkdir -p $(zapInstallDir)
-            tar -xzf /tmp/ZAP_2.14.0_Linux.tar.gz -C $(zapInstallDir) --strip-components=1
-            echo "OWASP ZAP installed in $(zapInstallDir)"
-          displayName: 'Install OWASP ZAP'
-
-        - script: |
             echo "Starting OWASP ZAP baseline scan on http://$(nginxPublicIP)"
             zaproxy -cmd -quickurl http://$(nginxPublicIP) -quickprogress -baselinescan -config api.disablekey=true -config scanner.attackOnStart=true -config view.mode=attack -report $(Build.ArtifactStagingDirectory)/zap_report.html
             echo "ZAP Scan Complete. Report generated at $(Build.ArtifactStagingDirectory)/zap_report.html"
