@@ -37,23 +37,27 @@ stages:
           inputs:
             targetType: 'inline'
             script: |
-              $hora = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-              $body = @{
-                attachments = @(
-                  @{
-                    contentType = "application/vnd.microsoft.teams.card.adaptive"
-                    content = @{
-                      type = "AdaptiveCard"
-                      version = "1.0"
-                      body = @(
-                        @{ type = "TextBlock"; text = "🚨 *Pipeline Fallida*"; weight = "Bolder"; size = "Medium"; color = "Attention" },
-                        @{ type = "TextBlock"; text = "🔧 Proyecto: ecommerce-microservice-backend-app" },
-                        @{ type = "TextBlock"; text = "🧪 Estado: Fallido" },
-                        @{ type = "TextBlock"; text = "📅 Hora: $hora" },
-                        @{ type = "TextBlock"; text = "🌿 Pipeline: $(Build.DefinitionName)" },
-                        @{ type = "TextBlock"; text = "👤 Ejecutado por: $(Build.RequestedFor)" },
-                        @{
-                          type = "TextBlock"
-                          text = "[🔍 Ver logs](https://dev.azure.com/salazq/ecommerce-microservice-backend-app/_build/results?buildId=$(Build.BuildId))"
-                          wrap = $true
+              Invoke-WebRequest -Uri "https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY" `
+                -Method POST `
+                -Headers @{ "Content-Type" = "application/json" } `
+                -Body '{
+                  "attachments": [{
+                    "contentType": "application/vnd.microsoft.teams.card.adaptive",
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "version": "1.0",
+                      "body": [
+                        { "type": "TextBlock", "text": "🚨 *Pipeline Fallida*", "weight": "Bolder", "size": "Medium", "color": "Attention" },
+                        { "type": "TextBlock", "text": "🔧 Proyecto: ecommerce-microservice-backend-app" },
+                        { "type": "TextBlock", "text": "🧪 Estado: Fallido" },
+                        { "type": "TextBlock", "text": "🌿 Rama: $(Build.DefinitionName)" },
+                        { "type": "TextBlock", "text": "👤 Ejecutado por: $(Build.RequestedFor)" },
+                        {
+                          "type": "TextBlock",
+                          "text": "[🔍 Ver logs](https://dev.azure.com/salazq/ecommerce-microservice-backend-app/_build/results?buildId=$(Build.BuildId))",
+                          "wrap": true
                         }
+                      ]
+                    }
+                  }]
+                }'
