@@ -36,7 +36,7 @@ stages:
   jobs:
     - job: RunAllTests
       pool:
-        vmImage: 'windows-latest'
+        vmImage: 'ubuntu-latest'
       steps:
         - checkout: self
         - task: Maven@4
@@ -71,18 +71,7 @@ stages:
             pathToPublish: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
             artifactName: 'AggregateCoverageReport'
             publishLocation: 'Container'
-    
-- stage: BuildAndPushImages
-  displayName: 'Build and Push Docker Images'
-  jobs:
-    - job: BuildAndPush
-      displayName: 'Build and Push Docker Images'
-      pool:
-        vmImage: 'ubuntu-latest'
-      steps:
-        - checkout: self
 
-        # cloud-config
         - task: Docker@2
           displayName: Build and Push cloud-config
           inputs:
@@ -205,6 +194,7 @@ stages:
 
 - stage: Deploy
   displayName: 'Deploy to AKS'
+  dependsOn: Tests
   jobs:
   - deployment: DeployToAKS
     displayName: 'Deploy Microservices to AKS'
@@ -391,7 +381,6 @@ stages:
   displayName: "Notificar Fallo en Teams"
   dependsOn:
     - Tests
-    - BuildAndPushImages
     - Deploy
   condition: failed()
   jobs:
