@@ -435,7 +435,7 @@ stages:
       inputs:
         collectionFileSource: 'postman-collections'
         Contents: |
-          postman-collections/*.postman_collection.json
+          **/*.postman_collection.json
         environmentSourceType: 'None'
         environmentVariables: |
           baseUrl=$(base_url)
