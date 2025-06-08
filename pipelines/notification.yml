@@ -30,62 +30,41 @@ stages:
         echo "This step will never run because the previous one failed"
       displayName: 'Unreachable Step'
 
-- stage: AlwaysNotify
-  displayName: 'Final Notification'
-  condition: always()
-  dependsOn: SyntheticFailure
+- stage: NotifyFailure
+  displayName: "Notificar Fallo en Teams"
+  dependsOn:
+    - SyntheticFailure
+  condition: failed()
   jobs:
-  - job: ConditionalNotification
-    displayName: 'Send Conditional Notification'
-    pool:
-      vmImage: 'windows-latest'
-    steps:
-    - powershell: |
-        $stageFailed = "$(Agent.JobStatus)" -eq "Failed" -or "$(Agent.JobStatus)" -eq "PartiallySucceeded"
-        
-        if ($stageFailed) {
-          Write-Host "Sending failure notification..."
-          
-          $body = @{
-            attachments = @(
-              @{
-                contentType = "application/vnd.microsoft.teams.card.adaptive"
-                content = @{
-                  type = "AdaptiveCard"
-                  version = "1.0"
-                  body = @(
-                    @{
-                      type = "TextBlock"
-                      text = "Pipeline Failure Alert"
-                      weight = "Bolder"
-                      size = "Medium"
-                      color = "Attention"
-                    },
-                    @{
-                      type = "TextBlock"
-                      text = "Pipeline: $(Build.DefinitionName)"
-                    },
-                    @{
-                      type = "TextBlock"
-                      text = "Status: Failed ❌"
-                      color = "Attention"
-                    },
-                    @{
-                      type = "TextBlock"
-                      text = "Build Number: $(Build.BuildNumber)"
-                    },
-                    @{
-                      type = "TextBlock"
-                      text = "Branch: $(Build.SourceBranchName)"
+    - job: NotifyJob
+      steps:
+        - task: PowerShell@2
+          displayName: 'Enviar mensaje a Teams'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Invoke-WebRequest -Uri "https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY" `
+                -Method POST `
+                -Headers @{ "Content-Type" = "application/json" } `
+                -Body '{
+                  "attachments": [{
+                    "contentType": "application/vnd.microsoft.teams.card.adaptive",
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "version": "1.0",
+                      "body": [
+                        { "type": "TextBlock", "text": "🚨 *Pipeline Fallida*", "weight": "Bolder", "size": "Medium", "color": "Attention" },
+                        { "type": "TextBlock", "text": "🔧 Proyecto: ecommerce-microservice-backend-app" },
+                        { "type": "TextBlock", "text": "🧪 Estado: Fallido" },
+                        { "type": "TextBlock", "text": "📅 Hora: $(Build.FinishTime)" },
+                        { "type": "TextBlock", "text": "🌿 Rama: $(Build.SourceBranchName)" },
+                        { "type": "TextBlock", "text": "👤 Ejecutado por: $(Build.RequestedFor)" },
+                        {
+                          "type": "TextBlock",
+                          "text": "[🔍 Ver logs](https://dev.azure.com/salazq/ecommerce-microservice-backend-app/_build/results?buildId=$(Build.BuildId))",
+                          "wrap": true
+                        }
+                      ]
                     }
-                  )
-                }
-              }
-            )
-          } | ConvertTo-Json -Depth 10
-          
-          Invoke-WebRequest -Uri "https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY" -Method POST -Headers @{"Content-Type"="application/json"} -Body $body
-        } else {
-          Write-Host "Pipeline succeeded, no notification needed."
-        }
-      displayName: 'Conditional Teams Notification'
+                  }]
+                }'
