@@ -21,14 +21,9 @@ stages:
     - script: |
         echo "Running tests..."
         echo "This step will always fail for testing purposes"
-        sleep 1
         echo "Simulating test failure..."
-        exit 1
       displayName: 'Failing Test Step'
     
-    - script: |
-        echo "This step will never run because the previous one failed"
-      displayName: 'Unreachable Step'
 
 - stage: NotifyFailure
   displayName: "Notificar Fallo en Teams"
@@ -56,8 +51,8 @@ stages:
                         { "type": "TextBlock", "text": "🚨 *Pipeline Fallida*", "weight": "Bolder", "size": "Medium", "color": "Attention" },
                         { "type": "TextBlock", "text": "🔧 Proyecto: ecommerce-microservice-backend-app" },
                         { "type": "TextBlock", "text": "🧪 Estado: Fallido" },
-                        { "type": "TextBlock", "text": "📅 Hora: $(Build.FinishTime)" },
-                        { "type": "TextBlock", "text": "🌿 Rama: $(Build.SourceBranchName)" },
+                        { "type": "TextBlock", "text": "📅 Hora: (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")" },
+                        { "type": "TextBlock", "text": "🌿 Pipeline: $(Build.DefinitionName)" },
                         { "type": "TextBlock", "text": "👤 Ejecutado por: $(Build.RequestedFor)" },
                         {
                           "type": "TextBlock",
