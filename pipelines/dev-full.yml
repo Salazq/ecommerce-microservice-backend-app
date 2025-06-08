@@ -393,9 +393,10 @@ stages:
     - Tests
     - BuildAndPushImages
     - Deploy
-  condition: failed()
+  condition: always()
   jobs:
     - job: NotifyJob
+      condition: failed() 
       steps:
         - task: PowerShell@2
           displayName: 'Enviar mensaje a Teams'
