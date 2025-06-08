@@ -391,9 +391,9 @@ stages:
           inputs:
             targetType: 'inline'
             script: |
-              Invoke-WebRequest -Uri "https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY" 
-                -Method POST 
-                -Headers @{ "Content-Type" = "application/json" } 
+              Invoke-WebRequest -Uri "https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY" `
+                -Method POST `
+                -Headers @{ "Content-Type" = "application/json" } `
                 -Body '{
                   "attachments": [{
                     "contentType": "application/vnd.microsoft.teams.card.adaptive",
