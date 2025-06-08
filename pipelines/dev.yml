@@ -203,8 +203,8 @@ stages:
 - stage: GetNginxIP
   displayName: 'Obtener IP pública de nginx-proxy'
   jobs:
-    - job: GetNginxServiceIP
-      displayName: 'Obtener IP del servicio nginx'
+    - job: CaptureNginxIP
+      displayName: 'Capturar IP del servicio nginx'
       pool:
         vmImage: 'ubuntu-latest'
       steps:
@@ -239,11 +239,18 @@ stages:
   condition: succeeded()
   jobs:
     - job: RunZapScan
-      displayName: 'Ejecutar OWASP ZAP contra IP pública del Nginx'
+      displayName: 'Ejecutar OWASP ZAP contra múltiples endpoints'
       pool:
         vmImage: 'ubuntu-latest'
       variables:
         NGINX_IP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
+        # Define aquí los endpoints que quieres escanear
+        ENDPOINTS: |
+          /user-service/api/users
+          /user-service/api/auth/login
+          /user-service/api/health
+          /product-service/api/products
+          /order-service/api/orders
       steps:
         - task: AzureCLI@2
           displayName: 'Login to Azure y obtener credenciales del clúster'
@@ -262,122 +269,225 @@ stages:
           displayName: 'Instalar OWASP ZAP'
 
         - bash: |
-            echo "Creando directorio para ZAP..."
-            mkdir -p $(System.DefaultWorkingDirectory)/owaspzap
-
-            echo "Creando plan de automatización de ZAP..."
-            cat <<EOF > $(System.DefaultWorkingDirectory)/owaspzap/automation_plan.yaml
-            env:
-              contexts:
-                - name: 'ecommerce-scan'
-                  urls:
-                    - 'http://$(NGINX_IP)/user-service/api/users' # Endpoint 1 (existente)
-                    - 'http://$(NGINX_IP)/product-service/api/products' # Reemplaza con la ruta de tu endpoint 2
-                    - 'http://$(NGINX_IP)/product-service/api/categories' # Reemplaza con la ruta de tu endpoint 3
-                    - 'http://$(NGINX_IP)/order-service/api/orders' # Reemplaza con la ruta de tu endpoint 4
-                    - 'http://$(NGINX_IP)/user-service/api/credentials' # Reemplaza con la ruta de tu endpoint 5
-                    - 'http://$(NGINX_IP)/payment-service/api/payments/' # Reemplaza con la ruta de tu endpoint 6
-                    - 'http://$(NGINX_IP)/shipping-service/api/shippings/' # Reemplaza con la ruta de tu endpoint 7
-              parameters:
-                failOnError: true
-                failOnWarning: false
-                progressToStdout: true
-            jobs:
-              - type: addOns
-                parameters:
-                  updateAddOns: true
-              - type: passiveScan-config
-                parameters:
-                  maxAlertsPerRule: 10
-                  scanOnlyInScope: true
-              - type: spider
-                parameters:
-                  context: 'ecommerce-scan'
-                  maxDuration: 5 # Puedes ajustar la duración del spider
-              - type: ajaxSpider # Opcional: útil para aplicaciones con mucho JavaScript
-                parameters:
-                  context: 'ecommerce-scan'
-                  maxDuration: 5 # Puedes ajustar la duración
-              - type: activeScan
-                parameters:
-                  context: 'ecommerce-scan'
-                  # policy: Default # Puedes especificar una política de escaneo si es necesario
-              - type: report
-                parameters:
-                  template: traditional-json
-                  reportDir: '$(System.DefaultWorkingDirectory)/owaspzap'
-                  reportFile: 'report.json'
-                  reportTitle: 'ZAP Consolidated Security Scan Report (JSON)'
-                  reportDescription: 'Consolidated ZAP scan report for multiple endpoints'
-              - type: report
-                parameters:
-                  template: traditional-html
-                  reportDir: '$(System.DefaultWorkingDirectory)/owaspzap'
-                  reportFile: 'report.html'
-                  reportTitle: 'ZAP Consolidated Security Scan Report (HTML)'
-                  reportDescription: 'Consolidated ZAP scan report for multiple endpoints'
+            echo "Preparando directorios y obteniendo IP..."
+            mkdir -p owaspzap
+            IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+            echo "IP obtenida: $IP"
+            
+            # Crear archivo de endpoints
+            cat > owaspzap/endpoints.txt << EOF
+            $(ENDPOINTS)
             EOF
-
-            echo "Ejecutando escaneo ZAP con plan de automatización..."
-            echo "Escaneando URLs en http://$(NGINX_IP)"
-            zaproxy -cmd -autorun "$(System.DefaultWorkingDirectory)/owaspzap/automation_plan.yaml"
-          displayName: 'Ejecutar ZAP scan con plan de automatización'
+            
+            # Filtrar líneas vacías
+            grep -v '^$' owaspzap/endpoints.txt > owaspzap/clean_endpoints.txt
+            
+            echo "Endpoints a escanear:"
+            cat owaspzap/clean_endpoints.txt
+            
+            # Iniciar ZAP en modo daemon
+            echo "Iniciando ZAP daemon..."
+            zaproxy -daemon -host 0.0.0.0 -port 8080 &
+            ZAP_PID=$!
+            
+            # Esperar a que ZAP esté listo
+            echo "Esperando a que ZAP esté listo..."
+            sleep 30
+            
+            # Verificar que ZAP está ejecutándose
+            if ! curl -s http://localhost:8080 > /dev/null; then
+                echo "Error: ZAP no está ejecutándose correctamente"
+                exit 1
+            fi
+            
+            echo "ZAP daemon iniciado correctamente"
+            echo $ZAP_PID > owaspzap/zap.pid
+          displayName: 'Preparar escaneo y iniciar ZAP daemon'
 
         - bash: |
-            sudo npm install -g handlebars-cmd
-            cat <<EOF > owaspzap/nunit-template.hbs
-            {{#each site}}
-            <test-run
-                id="2"
-                name="Owasp test"
-                start-time="{{../[@generated]}}"  >
-                <test-suite
-                    id="{{@index}}"
-                    type="Assembly"
-                    name="{{[@name]}}"
-                    result="Failed"
-                    failed="{{alerts.length}}">
-                    <attachments>
-                        <attachment>
-                            <filePath>owaspzap/report.html</filePath>
-                        </attachment>
-                    </attachments>
-                {{#each alerts}}<test-case
-                    id="{{@index}}"
-                    name="{{alert}}"
-                    result="Failed"
-                    fullname="{{alert}}"
-                    time="1">
-                        <failure>
-                                <message>
-                                 <![CDATA[{{{desc}}}]]>
-                            </message>
-                            <stack-trace>
-                                <![CDATA[
-            Solution:
-            {{{solution}}}
-            Reference:
-            {{{reference}}}
-            instances:{{#each instances}}
-            * {{uri}}
-                - {{method}}
-                {{#if evidence}}- {{{evidence}}}{{/if}}
-                                 {{/each}}]]>
-                             </stack-trace>
-                        </failure>
-                </test-case>
-                {{/each}}
-                </test-suite>
-            </test-run>
+            IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+            
+            echo "Ejecutando escaneos ZAP contra múltiples endpoints..."
+            
+            # Función para realizar spider y scan activo
+            scan_endpoint() {
+                local endpoint=$1
+                local url="http://${IP}${endpoint}"
+                echo "Escaneando: $url"
+                
+                # Spider del endpoint
+                echo "Ejecutando spider en $url"
+                curl -s "http://localhost:8080/JSON/spider/action/scan/?url=${url}" > /dev/null
+                
+                # Esperar a que termine el spider
+                while [ $(curl -s "http://localhost:8080/JSON/spider/view/status/" | grep -o '"status":"[0-9]*"' | cut -d'"' -f4) -lt 100 ]; do
+                    sleep 2
+                done
+                
+                # Escaneo activo
+                echo "Ejecutando escaneo activo en $url"
+                curl -s "http://localhost:8080/JSON/ascan/action/scan/?url=${url}" > /dev/null
+                
+                # Esperar a que termine el escaneo activo
+                while [ $(curl -s "http://localhost:8080/JSON/ascan/view/status/" | grep -o '"status":"[0-9]*"' | cut -d'"' -f4) -lt 100 ]; do
+                    sleep 5
+                done
+            }
+            
+            # Escanear cada endpoint
+            while IFS= read -r endpoint; do
+                if [ ! -z "$endpoint" ] && [ "$endpoint" != "" ]; then
+                    scan_endpoint "$endpoint"
+                fi
+            done < owaspzap/clean_endpoints.txt
+            
+            echo "Todos los escaneos completados"
+            
+          displayName: 'Ejecutar escaneos ZAP en múltiples endpoints'
+
+        - bash: |
+            echo "Generando reporte consolidado..."
+            
+            # Generar reporte JSON consolidado
+            curl -s "http://localhost:8080/JSON/core/view/alerts/" > owaspzap/report.json
+            
+            # Generar reporte HTML consolidado
+            curl -s "http://localhost:8080/OTHER/core/other/htmlreport/" > owaspzap/report.html
+            
+            # Generar reporte XML
+            curl -s "http://localhost:8080/OTHER/core/other/xmlreport/" > owaspzap/report.xml
+            
+            echo "Reportes generados exitosamente"
+            
+            # Mostrar resumen de vulnerabilidades encontradas
+            echo "=== RESUMEN DE VULNERABILIDADES ==="
+            if [ -f owaspzap/report.json ]; then
+                python3 -c "
+            import json
+            import sys
+            try:
+                with open('owaspzap/report.json', 'r') as f:
+                    data = json.load(f)
+                alerts = data.get('alerts', [])
+                print(f'Total de vulnerabilidades encontradas: {len(alerts)}')
+                
+                # Contar por nivel de riesgo
+                risk_counts = {}
+                for alert in alerts:
+                    risk = alert.get('risk', 'Unknown')
+                    risk_counts[risk] = risk_counts.get(risk, 0) + 1
+                
+                for risk, count in risk_counts.items():
+                    print(f'{risk}: {count}')
+                    
+            except Exception as e:
+                print(f'Error procesando reporte: {e}')
+            "
+                        fi
+                        
+                        # Detener ZAP daemon
+                        if [ -f owaspzap/zap.pid ]; then
+                            ZAP_PID=$(cat owaspzap/zap.pid)
+                            kill $ZAP_PID || true
+                        fi
+                        
+                    displayName: 'Generar reportes consolidados'
+
+                    - bash: |
+                        # Instalar handlebars para generar formato NUnit
+                        sudo npm install -g handlebars-cmd
+                        
+                        # Crear plantilla NUnit mejorada
+                        cat <<'EOF' > owaspzap/nunit-template.hbs
+            <?xml version="1.0" encoding="utf-8"?>
+            <test-results name="OWASP ZAP Security Scan" total="{{alerts.length}}" failures="{{alerts.length}}" not-run="0" date="{{@generated}}" time="{{@generated}}">
+              <environment />
+              <culture-info />
+              <test-suite name="OWASP ZAP Security Tests" executed="True" result="{{#if alerts.length}}Failure{{else}}Success{{/if}}" success="{{#unless alerts.length}}True{{else}}False{{/unless}}" time="0" asserts="{{alerts.length}}">
+                <results>
+                  {{#each alerts}}
+                  <test-case name="{{alert}} - {{url}}" executed="True" result="Failure" success="False" time="0" asserts="1">
+                    <failure>
+                      <message><![CDATA[
+            Security Issue: {{alert}}
+            Risk Level: {{risk}}
+            Confidence: {{confidence}}
+            URL: {{url}}
+            Description: {{desc}}
+                      ]]></message>
+                      <stack-trace><![CDATA[
+            Solution: {{solution}}
+            Reference: {{reference}}
+            Other Info: {{other}}
+
+            Instances:
+            {{#each instances}}
+            - URL: {{uri}}
+            - Method: {{method}}
+            {{#if evidence}}- Evidence: {{evidence}}{{/if}}
+            {{#if attack}}- Attack: {{attack}}{{/if}}
+            {{#if param}}- Parameter: {{param}}{{/if}}
             {{/each}}
+                      ]]></stack-trace>
+                    </failure>
+                  </test-case>
+                  {{/each}}
+                </results>
+              </test-suite>
+            </test-results>
             EOF
-          displayName: 'Crear plantilla NUnit para reporte OWASP ZAP'
+                        
+                    displayName: 'Crear plantilla NUnit para reporte consolidado'
 
-        - bash: 'handlebars owaspzap/report.json < owaspzap/nunit-template.hbs > owaspzap/test-results.xml'
-          displayName: 'Generar archivo de resultados NUnit'
+                    - bash: |
+                        echo "Generando archivo de resultados NUnit..."
+                        if [ -f owaspzap/report.json ]; then
+                            handlebars owaspzap/report.json < owaspzap/nunit-template.hbs > owaspzap/test-results.xml
+                            echo "Archivo NUnit generado exitosamente"
+                        else
+                            echo "Error: No se encontró el archivo de reporte JSON"
+                            exit 1
+                        fi
+                    displayName: 'Generar archivo de resultados NUnit'
 
-        - task: PublishTestResults@2
-          displayName: 'Publicar resultados del escaneo'
-          inputs:
-            testResultsFormat: 'NUnit'
-            testResultsFiles: 'owaspzap/test-results.xml'
+                    - task: PublishTestResults@2
+                      displayName: 'Publicar resultados del escaneo consolidado'
+                      inputs:
+                        testResultsFormat: 'NUnit'
+                        testResultsFiles: 'owaspzap/test-results.xml'
+                        failTaskOnFailedTests: false
+                        testRunTitle: 'OWASP ZAP Security Scan Results'
+
+                    - task: PublishBuildArtifacts@1
+                      displayName: 'Publicar reportes como artefactos'
+                      inputs:
+                        pathToPublish: 'owaspzap'
+                        artifactName: 'owasp-zap-reports'
+                        publishLocation: 'Container'
+                      condition: always()
+
+                    - bash: |
+                        echo "=== RESUMEN FINAL DEL ESCANEO ==="
+                        echo "Endpoints escaneados:"
+                        cat owaspzap/clean_endpoints.txt
+                        echo ""
+                        echo "Archivos generados:"
+                        ls -la owaspzap/
+                        echo ""
+                        if [ -f owaspzap/report.json ]; then
+                            echo "Reporte JSON: ✓"
+                        else
+                            echo "Reporte JSON: ✗"
+                        fi
+                        if [ -f owaspzap/report.html ]; then
+                            echo "Reporte HTML: ✓"
+                        else
+                            echo "Reporte HTML: ✗"
+                        fi
+                        if [ -f owaspzap/test-results.xml ]; then
+                            echo "Reporte NUnit: ✓"
+                        else
+                            echo "Reporte NUnit: ✗"
+                        fi
+                    displayName: 'Mostrar resumen final'
+                    condition: always()
