@@ -265,8 +265,8 @@ stages:
             echo "Ejecutando escaneo ZAP..."
             mkdir -p owaspzap
             IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-            echo "Iniciando escaneo contra http://$IP"
-            zaproxy -cmd -quickurl "http://$IP" -quickout owaspzap/report.json -quickprogress
+            echo "Iniciando escaneo contra http://$IP/user-service/api/users"
+            zaproxy -cmd -quickurl "http://$IP/user-service/api/users" -quickout owaspzap/report.json -quickprogress
           displayName: 'Ejecutar ZAP scan en modo headless'
 
         - bash: |
