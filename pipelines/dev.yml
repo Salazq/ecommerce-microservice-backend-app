@@ -245,14 +245,19 @@ stages:
       variables:
         NGINX_IP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
       steps:
-        - task: owaspzap@1
-          inputs:
-            aggressivemode: true
-            scantype: 'targetedScan'
-            threshold: '50'
-            url: 'http://$(NGINX_IP)'
-            port: '80'
-          displayName: 'Ejecutar OWASP ZAP Scan'
+        - bash: |
+            echo "Instalando OWASP ZAP..."
+            sudo apt-get update
+            sudo apt-get install -y snap
+            sudo snap install zaproxy --classic
+          displayName: 'Instalar OWASP ZAP'
+
+        - bash: |
+            echo "Ejecutando escaneo ZAP..."
+            mkdir -p owaspzap
+            zaproxy -cmd -quickurl "http://$(NGINX_IP)" -quickout owaspzap/report.json -quickprogress -quickexit
+          displayName: 'Ejecutar ZAP scan en modo headless'
+
         - bash: |
             sudo npm install -g handlebars-cmd
             cat <<EOF > owaspzap/nunit-template.hbs
