@@ -15,6 +15,8 @@ variables:
     value: '$(Agent.ToolsDirectory)/zap'
   - name: nginxServiceName
     value: 'nginx-proxy'
+
+stages:
 - stage: Deploy
   displayName: 'Deploy to AKS'
   jobs:
@@ -230,7 +232,7 @@ variables:
             done
           displayName: 'Capturar IP pública del nginx'
           name: CaptureIP
-
+          
 - stage: ZAPScan
   displayName: 'Escaneo de Seguridad con OWASP ZAP'
   dependsOn: GetNginxIP
