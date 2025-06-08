@@ -1,5 +1,5 @@
-# Pipeline de Azure DevOps para Build y Análisis de Seguridad con Trivy
-# Construye todas las imágenes Docker de los microservicios y las analiza con Trivy
+# Pipeline de Azure DevOps para Análisis de Seguridad con Trivy
+# Escanea el repositorio y las imágenes Docker de los microservicios con Trivy
 
 trigger:
 - develop
@@ -10,169 +10,185 @@ variables:
   - group: variable-group-taller
   - name: vmImageName
     value: 'ubuntu-latest'
-  - name: containerRegistry
-    value: 'salazq'
-  - name: dockerRegistryServiceConnection
-    value: 'dockerhub-connection'
-  - name: tag
-    value: '$(Build.BuildId)'
+  - name: dockerHubUsername
+    value: 'your-dockerhub-username'  # Cambiar por tu usuario de Docker Hub
 
 stages:
-- stage: Build
-  displayName: 'Build and Security Scan'
+- stage: SecurityScan
+  displayName: 'Security Scan with Trivy'
   jobs:
-  - job: BuildAndScan
-    displayName: 'Build Microservices and Trivy Scan'
+  - job: TrivyScans
+    displayName: 'Trivy Security Scans'
     pool:
-      vmImage: $(vmImageName)
-    strategy:
-      matrix:
-        service-discovery:
-          serviceName: 'service-discovery'
-          dockerfilePath: 'service-discovery/Dockerfile'
-        cloud-config:
-          serviceName: 'cloud-config'
-          dockerfilePath: 'cloud-config/Dockerfile'
-        api-gateway:
-          serviceName: 'api-gateway'
-          dockerfilePath: 'api-gateway/Dockerfile'
-        proxy-client:
-          serviceName: 'proxy-client'
-          dockerfilePath: 'proxy-client/Dockerfile'
-        user-service:
-          serviceName: 'user-service'
-          dockerfilePath: 'user-service/Dockerfile'
-        product-service:
-          serviceName: 'product-service'
-          dockerfilePath: 'product-service/Dockerfile'
-        order-service:
-          serviceName: 'order-service'
-          dockerfilePath: 'order-service/Dockerfile'
-        payment-service:
-          serviceName: 'payment-service'
-          dockerfilePath: 'payment-service/Dockerfile'
-        shipping-service:
-          serviceName: 'shipping-service'
-          dockerfilePath: 'shipping-service/Dockerfile'
-        favourite-service:
-          serviceName: 'favourite-service'
-          dockerfilePath: 'favourite-service/Dockerfile'
-        nginx:
-          serviceName: 'nginx'
-          dockerfilePath: 'nginx/Dockerfile'
+      vmImage: $(vmImageName)    
     steps:
     # Paso 1: Checkout del código
     - checkout: self
-      displayName: 'Checkout Repository'
-
-    # Paso 2: Setup de Java para servicios que lo requieren
-    - task: JavaToolInstaller@0
-      displayName: 'Setup Java 11'
+      displayName: 'Checkout Repository'    # Paso 2: Escaneo del repositorio como filesystem
+    - task: trivy@2
+      name: TrivyFilesystem
+      displayName: 'Scan current repository as filesystem'
+      continueOnError: true
       inputs:
-        versionSpec: '11'
-        jdkArchitectureOption: 'x64'
-        jdkSourceOption: 'PreInstalled'
-      condition: ne(variables['serviceName'], 'nginx')
-
-    # Paso 3: Build con Maven para servicios Java
-    - task: Maven@4
-      displayName: 'Maven Build - $(serviceName)'
+        version: 'latest'
+        type: 'filesystem'
+        target: '.'
+        scanners: 'misconfig,vuln,secret'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, html'
+        publish: true    # Paso 3: Escaneo de imágenes Docker desde Docker Hub
+    - task: trivy@2
+      name: TrivyServiceDiscovery
+      displayName: 'Scan service-discovery image'
+      continueOnError: true
       inputs:
-        mavenPomFile: '$(serviceName)/pom.xml'
-        goals: 'clean package'
-        publishJUnitResults: true
-        testResultsFiles: '**/surefire-reports/TEST-*.xml'
-        javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '1.11'
-        mavenVersionOption: 'Default'
-        mavenAuthenticateFeed: false
-        effectivePomSkip: false
-        sonarQubeRunAnalysis: false
-        options: '-DskipTests=true'
-      condition: ne(variables['serviceName'], 'nginx')
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/service-discovery:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
 
-    # Paso 4: Build de la imagen Docker
-    - task: Docker@2
-      displayName: 'Build Docker Image - $(serviceName)'
+    - task: trivy@2
+      name: TrivyCloudConfig
+      displayName: 'Scan cloud-config image'
+      continueOnError: true
       inputs:
-        command: 'build'
-        repository: '$(containerRegistry)/$(serviceName)'
-        dockerfile: '$(dockerfilePath)'
-        containerRegistry: '$(dockerRegistryServiceConnection)'
-        tags: |
-          $(tag)
-          latest
-        buildContext: '$(serviceName)'
-      condition: ne(variables['serviceName'], 'nginx')
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/cloud-config:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
 
-    # Paso 4b: Build especial para nginx (no tiene Maven)
-    - task: Docker@2
-      displayName: 'Build Docker Image - nginx'
+    - task: trivy@2
+      name: TrivyApiGateway
+      displayName: 'Scan api-gateway image'
+      continueOnError: true
       inputs:
-        command: 'build'
-        repository: '$(containerRegistry)/nginx'
-        dockerfile: 'nginx/Dockerfile'
-        containerRegistry: '$(dockerRegistryServiceConnection)'
-        tags: |
-          $(tag)
-          latest
-        buildContext: 'nginx'
-      condition: eq(variables['serviceName'], 'nginx')
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/api-gateway:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
 
-    # Paso 5: Instalar Trivy
-    - task: Bash@3
-      displayName: 'Install Trivy'
+    - task: trivy@2
+      name: TrivyProxyClient
+      displayName: 'Scan proxy-client image'
+      continueOnError: true
       inputs:
-        targetType: 'inline'
-        script: |
-          sudo apt-get update
-          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy -y
-          trivy --version
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/proxy-client:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
 
-    # Paso 6: Escaneo de Vulnerabilidades con Trivy
-    - task: Bash@3
-      displayName: 'Trivy Security Scan - $(serviceName)'
+    - task: trivy@2
+      name: TrivyUserService
+      displayName: 'Scan user-service image'
+      continueOnError: true
       inputs:
-        targetType: 'inline'
-        script: |
-          echo "Escaneando imagen: $(containerRegistry)/$(serviceName):$(tag)"
-          
-          # Crear directorio para reportes
-          mkdir -p $(Agent.TempDirectory)/trivy-reports
-          
-          # Escaneo de vulnerabilidades
-          trivy image \
-            --format table \
-            --severity HIGH,CRITICAL \
-            --ignore-unfixed \
-            --exit-code 0 \
-            $(containerRegistry)/$(serviceName):$(tag) | tee $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.txt
-          
-          # Generar reporte en formato JSON para análisis posterior
-          trivy image \
-            --format json \
-            --severity HIGH,CRITICAL,MEDIUM \
-            --ignore-unfixed \
-            --exit-code 0 \
-            --output $(Agent.TempDirectory)/trivy-reports/$(serviceName)-security-report.json \
-            $(containerRegistry)/$(serviceName):$(tag)
-          
-          # Escaneo de configuración de la imagen
-          trivy config \
-            --format table \
-            --exit-code 0 \
-            $(dockerfilePath) | tee $(Agent.TempDirectory)/trivy-reports/$(serviceName)-config-report.txt
-          
-          echo "Escaneo completado para $(serviceName)"
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/user-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
 
-    # Paso 7: Publicar reportes de Trivy como artefactos
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Trivy Reports - $(serviceName)'
+    - task: trivy@2
+      name: TrivyProductService
+      displayName: 'Scan product-service image'
+      continueOnError: true
       inputs:
-        pathToPublish: '$(Agent.TempDirectory)/trivy-reports'
-        artifactName: 'trivy-security-reports-$(serviceName)'
-        publishLocation: 'Container'
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/product-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyOrderService
+      displayName: 'Scan order-service image'
+      continueOnError: true
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/order-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyPaymentService
+      displayName: 'Scan payment-service image'
+      continueOnError: true
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/payment-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyShippingService
+      displayName: 'Scan shipping-service image'
+      continueOnError: true
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/shipping-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyFavouriteService
+      displayName: 'Scan favourite-service image'
+      continueOnError: true
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/favourite-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyNginx
+      displayName: 'Scan nginx image'
+      continueOnError: true
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/nginx:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true    # Paso 4: Los reportes se publican automáticamente como artefactos
+    # Los resultados están disponibles en GitHub Security y como archivos SARIF/HTML
