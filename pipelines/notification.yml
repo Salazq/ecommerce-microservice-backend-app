@@ -10,24 +10,10 @@ variables:
   LOGIC_APP_WEBHOOK: 'https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY'
 
 stages:
-# Stage que siempre funciona
-- stage: Build
-  displayName: 'Build Stage'
-  jobs:
-  - job: BuildJob
-    displayName: 'Build Job'
-    steps:
-    - script: |
-        echo "Starting build process..."
-        echo "Compiling application..."
-        sleep 2
-        echo "Build completed successfully!"
-      displayName: 'Build Application'
 
 # Stage sintético que SIEMPRE falla (para testing)
 - stage: SyntheticFailure
   displayName: 'Test Stage (Always Fails)'
-  dependsOn: Build
   jobs:
   - job: FailingJob
     displayName: 'Synthetic Failing Job'
@@ -44,55 +30,62 @@ stages:
         echo "This step will never run because the previous one failed"
       displayName: 'Unreachable Step'
 
-# Stage de notificación que solo se ejecuta cuando algo falla
-- stage: NotifyFailure
-  displayName: 'Notify Failure'
-  dependsOn: 
-  - Build
-  - SyntheticFailure
-  condition: failed() # Solo se ejecuta si algún stage anterior falló
+- stage: AlwaysNotify
+  displayName: 'Final Notification'
+  condition: always()
+  dependsOn: SyntheticFailure
   jobs:
-  - job: SendNotification
-    displayName: 'Send Failure Notification'
+  - job: ConditionalNotification
+    displayName: 'Send Conditional Notification'
+    pool:
+      vmImage: 'windows-latest'
     steps:
-    - task: PowerShell@2
-      displayName: 'Send Logic App Notification'
-      inputs:
-        targetType: 'inline'
-        script: |
-          $uri = "$(LOGIC_APP_WEBHOOK)"
+    - powershell: |
+        $stageFailed = "$(Agent.JobStatus)" -eq "Failed" -or "$(Agent.JobStatus)" -eq "PartiallySucceeded"
+        
+        if ($stageFailed) {
+          Write-Host "Sending failure notification..."
           
-          # Preparar el payload para Logic App
           $body = @{
-            title = "🚨 Pipeline Failed"
-            message = "Pipeline $(Build.DefinitionName) failed on branch $(Build.SourceBranchName)"
-            details = @{
-              buildId = "$(Build.BuildId)"
-              buildNumber = "$(Build.BuildNumber)"
-              branch = "$(Build.SourceBranchName)"
-              repository = "$(Build.Repository.Name)"
-              triggeredBy = "$(Build.RequestedFor)"
-              failedAt = "$(System.DateTime)"
-              project = "$(System.TeamProject)"
-              buildUrl = "$(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
-            }
-            status = "failed"
-            color = "ff0000"
-          }
+            attachments = @(
+              @{
+                contentType = "application/vnd.microsoft.teams.card.adaptive"
+                content = @{
+                  type = "AdaptiveCard"
+                  version = "1.0"
+                  body = @(
+                    @{
+                      type = "TextBlock"
+                      text = "Pipeline Failure Alert"
+                      weight = "Bolder"
+                      size = "Medium"
+                      color = "Attention"
+                    },
+                    @{
+                      type = "TextBlock"
+                      text = "Pipeline: $(Build.DefinitionName)"
+                    },
+                    @{
+                      type = "TextBlock"
+                      text = "Status: Failed ❌"
+                      color = "Attention"
+                    },
+                    @{
+                      type = "TextBlock"
+                      text = "Build Number: $(Build.BuildNumber)"
+                    },
+                    @{
+                      type = "TextBlock"
+                      text = "Branch: $(Build.SourceBranchName)"
+                    }
+                  )
+                }
+              }
+            )
+          } | ConvertTo-Json -Depth 10
           
-          $json = $body | ConvertTo-Json -Depth 5
-          
-          Write-Host "Sending notification to Logic App..."
-          Write-Host "Payload: $json"
-          
-          try {
-            $response = Invoke-RestMethod -Uri $uri -Method Post -Body $json -ContentType 'application/json'
-            Write-Host "✅ Notification sent successfully!"
-            Write-Host "Response: $response"
-          }
-          catch {
-            Write-Host "❌ Failed to send notification"
-            Write-Host "Error: $($_.Exception.Message)"
-            Write-Host "Status Code: $($_.Exception.Response.StatusCode.value__)"
-            Write-Host "Response: $($_.Exception.Response)"
-          }
+          Invoke-WebRequest -Uri "https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY" -Method POST -Headers @{"Content-Type"="application/json"} -Body $body
+        } else {
+          Write-Host "Pipeline succeeded, no notification needed."
+        }
+      displayName: 'Conditional Teams Notification'
