@@ -396,7 +396,7 @@ stages:
   condition: always()
   jobs:
     - job: NotifyJob
-      condition: failed() 
+      condition: or(failed('Tests'), failed('BuildAndPushImages'), failed('Deploy'))
       steps:
         - task: PowerShell@2
           displayName: 'Enviar mensaje a Teams'
