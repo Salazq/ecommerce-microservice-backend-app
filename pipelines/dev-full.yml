@@ -63,15 +63,6 @@ stages:
             summaryFileLocation: 'jacoco-report-aggregation/target/site/jacoco-aggregate/jacoco.xml'
             pathToSources: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
 
-        # Publica solo el reporte HTML agregado como artefacto descargable
-        - task: PublishBuildArtifacts@1
-          displayName: 'Publish Aggregate Coverage HTML Report'
-          condition: succeeded()
-          inputs:
-            pathToPublish: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
-            artifactName: 'AggregateCoverageReport'
-            publishLocation: 'Container'
-
         - task: Docker@2
           displayName: Build and Push cloud-config
           inputs:
