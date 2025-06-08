@@ -203,8 +203,8 @@ stages:
 - stage: GetNginxIP
   displayName: 'Obtener IP pública de nginx-proxy'
   jobs:
-    - job: CaptureNginxIP
-      displayName: 'Capturar IP del servicio nginx'
+    - job: GetNginxServiceIP
+      displayName: 'Obtener IP del servicio nginx'
       pool:
         vmImage: 'ubuntu-latest'
       steps:
@@ -262,12 +262,66 @@ stages:
           displayName: 'Instalar OWASP ZAP'
 
         - bash: |
-            echo "Ejecutando escaneo ZAP..."
-            mkdir -p owaspzap
-            IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-            echo "Iniciando escaneo contra http://$IP/user-service/api/users"
-            zaproxy -cmd -quickurl "http://$IP/user-service/api/users" -quickout "$(System.DefaultWorkingDirectory)/owaspzap/report.json" -quickprogress
-          displayName: 'Ejecutar ZAP scan en modo headless'
+            echo "Creando directorio para ZAP..."
+            mkdir -p $(System.DefaultWorkingDirectory)/owaspzap
+
+            echo "Creando plan de automatización de ZAP..."
+            cat <<EOF > $(System.DefaultWorkingDirectory)/owaspzap/automation_plan.yaml
+            env:
+              contexts:
+                - name: 'ecommerce-scan'
+                  urls:
+                    - 'http://$(NGINX_IP)/user-service/api/users' # Endpoint 1 (existente)
+                    - 'http://$(NGINX_IP)/product-service/api/products' # Reemplaza con la ruta de tu endpoint 2
+                    - 'http://$(NGINX_IP)/product-service/api/categories' # Reemplaza con la ruta de tu endpoint 3
+                    - 'http://$(NGINX_IP)/order-service/api/orders' # Reemplaza con la ruta de tu endpoint 4
+                    - 'http://$(NGINX_IP)/user-service/api/credentials' # Reemplaza con la ruta de tu endpoint 5
+                    - 'http://$(NGINX_IP)/payment-service/api/payments/' # Reemplaza con la ruta de tu endpoint 6
+                    - 'http://$(NGINX_IP)/shipping-service/api/shippings/' # Reemplaza con la ruta de tu endpoint 7
+              parameters:
+                failOnError: true
+                failOnWarning: false
+                progressToStdout: true
+            jobs:
+              - type: addOns
+                parameters:
+                  updateAddOns: true
+              - type: passiveScan-config
+                parameters:
+                  maxAlertsPerRule: 10
+                  scanOnlyInScope: true
+              - type: spider
+                parameters:
+                  context: 'ecommerce-scan'
+                  maxDuration: 5 # Puedes ajustar la duración del spider
+              - type: ajaxSpider # Opcional: útil para aplicaciones con mucho JavaScript
+                parameters:
+                  context: 'ecommerce-scan'
+                  maxDuration: 5 # Puedes ajustar la duración
+              - type: activeScan
+                parameters:
+                  context: 'ecommerce-scan'
+                  # policy: Default # Puedes especificar una política de escaneo si es necesario
+              - type: report
+                parameters:
+                  template: traditional-json
+                  reportDir: '$(System.DefaultWorkingDirectory)/owaspzap'
+                  reportFile: 'report.json'
+                  reportTitle: 'ZAP Consolidated Security Scan Report (JSON)'
+                  reportDescription: 'Consolidated ZAP scan report for multiple endpoints'
+              - type: report
+                parameters:
+                  template: traditional-html
+                  reportDir: '$(System.DefaultWorkingDirectory)/owaspzap'
+                  reportFile: 'report.html'
+                  reportTitle: 'ZAP Consolidated Security Scan Report (HTML)'
+                  reportDescription: 'Consolidated ZAP scan report for multiple endpoints'
+            EOF
+
+            echo "Ejecutando escaneo ZAP con plan de automatización..."
+            echo "Escaneando URLs en http://$(NGINX_IP)"
+            zaproxy -cmd -autorun "$(System.DefaultWorkingDirectory)/owaspzap/automation_plan.yaml"
+          displayName: 'Ejecutar ZAP scan con plan de automatización'
 
         - bash: |
             sudo npm install -g handlebars-cmd
