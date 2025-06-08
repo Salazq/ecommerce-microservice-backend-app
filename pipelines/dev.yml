@@ -15,25 +15,6 @@ variables:
     value: '$(Agent.ToolsDirectory)/zap'
   - name: nginxServiceName
     value: 'nginx-proxy'
-
-stages:
-- stage: InstallOwaspZap
-  displayName: 'Install OWASP ZAP'
-  jobs:
-  - job: InstallZap
-    displayName: 'Install ZAP'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-      - script: |
-          echo "Updating package lists..."
-          sudo apt-get update -y
-          echo "Installing OWASP ZAP..."
-          sudo apt-get install -y zaproxy
-          echo "OWASP ZAP installed via apt."
-        name: ZapInstallation
-        displayName: 'Install OWASP ZAP via apt'
-
 - stage: Deploy
   displayName: 'Deploy to AKS'
   jobs:
@@ -250,27 +231,81 @@ stages:
           displayName: 'Capturar IP pública del nginx'
           name: CaptureIP
 
-- stage: SecurityScan
-  displayName: 'Perform OWASP ZAP Security Scan'
-  dependsOn:
-    - GetNginxIP
+- stage: ZAPScan
+  displayName: 'Escaneo de Seguridad con OWASP ZAP'
+  dependsOn: GetNginxIP
+  condition: succeeded()
   jobs:
-    - job: ZapScan
-      displayName: 'Install ZAP and Run Security Scan'
+    - job: RunZapScan
+      displayName: 'Ejecutar OWASP ZAP contra IP pública del Nginx'
       pool:
         vmImage: 'ubuntu-latest'
       variables:
-        nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+        NGINX_IP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
       steps:
-        - script: |
-            echo "Starting OWASP ZAP baseline scan on http://$(nginxPublicIP)"
-            zaproxy -cmd -quickurl http://$(nginxPublicIP) -quickprogress -baselinescan -config api.disablekey=true -config scanner.attackOnStart=true -config view.mode=attack -report $(Build.ArtifactStagingDirectory)/zap_report.html
-            echo "ZAP Scan Complete. Report generated at $(Build.ArtifactStagingDirectory)/zap_report.html"
-          displayName: 'Run OWASP ZAP Baseline Scan'
-
-        - task: PublishBuildArtifacts@1
+        - task: owaspzap@1
           inputs:
-            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-            ArtifactName: 'ZAPScanReport'
-            publishLocation: 'Container'
-          displayName: 'Publish ZAP Scan Report'
+            aggressivemode: true
+            threshold: '50'
+            targeturl: 'http://$(NGINX_IP)'
+            port: '80'
+          displayName: 'Ejecutar OWASP ZAP Scan'
+
+        - bash: |
+            sudo npm install -g handlebars-cmd
+            cat <<EOF > owaspzap/nunit-template.hbs
+            {{#each site}}
+            <test-run
+                id="2"
+                name="Owasp test"
+                start-time="{{../[@generated]}}"  >
+                <test-suite
+                    id="{{@index}}"
+                    type="Assembly"
+                    name="{{[@name]}}"
+                    result="Failed"
+                    failed="{{alerts.length}}">
+                    <attachments>
+                        <attachment>
+                            <filePath>owaspzap/report.html</filePath>
+                        </attachment>
+                    </attachments>
+                {{#each alerts}}<test-case
+                    id="{{@index}}"
+                    name="{{alert}}"
+                    result="Failed"
+                    fullname="{{alert}}"
+                    time="1">
+                        <failure>
+                                <message>
+                                 <![CDATA[{{{desc}}}]]>
+                            </message>
+                            <stack-trace>
+                                <![CDATA[
+            Solution:
+            {{{solution}}}
+            Reference:
+            {{{reference}}}
+            instances:{{#each instances}}
+            * {{uri}}
+                - {{method}}
+                {{#if evidence}}- {{{evidence}}}{{/if}}
+                                 {{/each}}]]>
+                             </stack-trace>
+                        </failure>
+                </test-case>
+                {{/each}}
+                </test-suite>
+            </test-run>
+            {{/each}}
+            EOF
+          displayName: 'Crear plantilla NUnit para reporte OWASP ZAP'
+
+        - bash: 'handlebars owaspzap/report.json < owaspzap/nunit-template.hbs > owaspzap/test-results.xml'
+          displayName: 'Generar archivo de resultados NUnit'
+
+        - task: PublishTestResults@2
+          displayName: 'Publicar resultados del escaneo'
+          inputs:
+            testResultsFormat: 'NUnit'
+            testResultsFiles: 'owaspzap/test-results.xml'
