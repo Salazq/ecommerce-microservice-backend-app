@@ -16,13 +16,14 @@
 	<name>ecommerce-microservice-backend</name>
 	<description>Ecommerce backend implemented in Spring Boot and Spring Cloud!</description>
 	<packaging>pom</packaging>
-	
-	<properties>
+		<properties>
 		<java.version>11</java.version>
 		<spring-cloud.version>2020.0.4</spring-cloud.version>
 		<testcontainers.version>1.16.0</testcontainers.version>
+		<jacoco.version>0.8.7</jacoco.version>
+		<maven.compiler.source>11</maven.compiler.source>
+		<maven.compiler.target>11</maven.compiler.target>
 	</properties>
-	
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -97,9 +98,7 @@
 				<scope>import</scope>
 			</dependency>
 		</dependencies>
-	</dependencyManagement>
-	
-	<modules>
+	</dependencyManagement>	<modules>
 		<module>service-discovery</module>
 		<module>cloud-config</module>
 		<module>api-gateway</module>
@@ -110,13 +109,62 @@
 		<module>order-service</module>
 		<module>shipping-service</module>
 		<module>payment-service</module>
+		<module>jacoco-report-aggregation</module>
 	</modules>
-	
-	<build>
+		<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.jacoco</groupId>
+					<artifactId>jacoco-maven-plugin</artifactId>
+					<version>${jacoco.version}</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+					<!-- JaCoCo Maven Plugin -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<executions>
+					<!-- Preparar el agente JaCoCo para tests unitarios -->
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					
+					<!-- Generar reporte de cobertura después de los tests -->
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					
+					<!-- Preparar el agente para tests de integración -->
+					<execution>
+						<id>prepare-agent-integration</id>
+						<goals>
+							<goal>prepare-agent-integration</goal>
+						</goals>
+					</execution>
+					
+					<!-- Generar reporte de cobertura de integración -->
+					<execution>
+						<id>report-integration</id>
+						<goals>
+							<goal>report-integration</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 		<finalName>${project.artifactId}-v${project.version}</finalName>

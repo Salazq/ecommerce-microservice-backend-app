@@ -1,0 +1,93 @@
+# Pipeline de Azure DevOps con SonarCloud para análisis estático de código
+trigger: none
+
+variables:
+  - group: variable-group-taller
+  - name: environmentPath
+    value: 'terraform/environments/$(environment)'
+  - name: aksResourceGroup
+    value: 'dev-resource-group'
+  - name: aksClusterName
+    value: 'dev-aks-cluster'
+  - name: kubernetesNamespace
+    value: 'ecommerce'
+  # Variables para SonarCloud - Agregar estas a tu variable group
+  - name: SONAR_PROJECT_KEY
+    value: 'ecommerce-microservice-backend'
+  - name: SONAR_ORGANIZATION
+    value: 'tu-organizacion-sonarcloud' # Cambiar por tu organización
+
+stages:
+# Nuevo stage para análisis de código
+- stage: CodeAnalysis
+  displayName: 'Code Quality Analysis'
+  jobs:
+  - job: SonarCloudAnalysis
+    displayName: 'SonarCloud Analysis'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
+      fetchDepth: 0  # Necesario para el análisis de SonarCloud
+    
+    # Configurar Java
+    - task: JavaToolInstaller@0
+      displayName: 'Setup Java 11'
+      inputs:
+        versionSpec: '11'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
+    
+    # Cache de Maven para acelerar builds
+    - task: Cache@2
+      displayName: 'Cache Maven dependencies'
+      inputs:
+        key: 'maven | "$(Agent.OS)" | **/pom.xml'
+        restoreKeys: |
+          maven | "$(Agent.OS)"
+          maven
+        path: $(MAVEN_CACHE_FOLDER)
+    
+    # Preparar análisis de SonarCloud
+    - task: SonarCloudPrepare@1
+      displayName: 'Prepare SonarCloud analysis'
+      inputs:
+        SonarCloud: 'SonarCloud' # Service connection name (debes crear esta conexión)
+        organization: '$(SONAR_ORGANIZATION)'
+        scannerMode: 'Other'
+        extraProperties: |
+          sonar.projectKey=$(SONAR_PROJECT_KEY)
+          sonar.projectName=Ecommerce Microservice Backend
+          sonar.projectVersion=$(Build.BuildNumber)
+          sonar.sources=.
+          sonar.java.source=11
+          sonar.java.binaries=**/target/classes
+          sonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml
+          sonar.junit.reportPaths=**/target/surefire-reports/*.xml
+          sonar.exclusions=**/target/**,**/node_modules/**,**/*.min.js,**/vendor/**
+    
+    # Ejecutar tests y generar reportes de cobertura
+    - task: Maven@3
+      displayName: 'Run Tests and Generate Coverage'
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'clean verify'
+        options: '-Dmaven.test.failure.ignore=true'
+        publishJUnitTestResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.11'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: false
+    
+    # Ejecutar análisis de SonarCloud
+    - task: SonarCloudAnalyze@1
+      displayName: 'Run SonarCloud analysis'
+    
+    # Publicar resultados de SonarCloud
+    - task: SonarCloudPublish@1
+      displayName: 'Publish SonarCloud results'
+      inputs:
+        pollingTimeoutSec: '300'

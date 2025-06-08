@@ -1,0 +1,189 @@
+
+trigger:
+ none
+
+variables:
+  - group: variable-group-taller
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  - name: dockerHubUsername
+    value: 'salazq'  # Cambiar por tu usuario de Docker Hub
+
+stages:
+- stage: SecurityScan
+  displayName: 'Security Scan with Trivy'
+  jobs:
+  - job: TrivyScans
+    displayName: 'Trivy Security Scans'
+    pool:
+      vmImage: $(vmImageName)    
+    steps:
+    # Paso 1: Checkout del código
+    - checkout: self
+      displayName: 'Checkout Repository'
+
+
+    # Paso 3: Escaneo de imágenes Docker desde Docker Hub
+    - task: trivy@2
+      name: TrivyServiceDiscovery
+      displayName: 'Scan service-discovery image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/service-discovery:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyCloudConfig
+      displayName: 'Scan cloud-config image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/cloud-config:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyApiGateway
+      displayName: 'Scan api-gateway image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/api-gateway:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyProxyClient
+      displayName: 'Scan proxy-client image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/proxy-client:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyUserService
+      displayName: 'Scan user-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/user-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyProductService
+      displayName: 'Scan product-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/product-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyOrderService
+      displayName: 'Scan order-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/order-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyPaymentService
+      displayName: 'Scan payment-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/payment-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyShippingService
+      displayName: 'Scan shipping-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/shipping-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyFavouriteService
+      displayName: 'Scan favourite-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/favourite-service:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyNginx
+      displayName: 'Scan nginx image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/nginx:latest'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    # Paso 4: Publicar resultados de tests
+    - task: PublishTestResults@2
+      displayName: 'Publish Trivy Test Results'
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: |
+          $(TrivyServiceDiscovery.junitReport)
+          $(TrivyCloudConfig.junitReport)
+          $(TrivyApiGateway.junitReport)
+          $(TrivyProxyClient.junitReport)
+          $(TrivyUserService.junitReport)
+          $(TrivyProductService.junitReport)
+          $(TrivyOrderService.junitReport)
+          $(TrivyPaymentService.junitReport)
+          $(TrivyShippingService.junitReport)
+          $(TrivyFavouriteService.junitReport)
+          $(TrivyNginx.junitReport)
+        searchFolder: '$(Agent.TempDirectory)'
+        testRunTitle: 'Trivy Security Scan Results'
+        publishRunAttachments: false

@@ -1,5 +1,4 @@
-trigger:
-  none
+trigger: none
 
 variables:
   - group: variable-group-taller
