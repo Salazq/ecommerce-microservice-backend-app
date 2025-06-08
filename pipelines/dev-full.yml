@@ -79,8 +79,6 @@ stages:
       displayName: 'Build and Push All Docker Images'
       pool:
         vmImage: 'windows-latest'
-      variables:
-        tag: $(Build.BuildId)
       steps:
         - checkout: self
 
