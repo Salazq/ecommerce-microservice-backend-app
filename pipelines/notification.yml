@@ -20,8 +20,7 @@ stages:
     steps:
     - script: |
         echo "Running tests..."
-        echo "This step will always fail for testing purposes"
-        echo "Simulating test failure..."
+        exit 1
       displayName: 'Failing Test Step'
     
 
