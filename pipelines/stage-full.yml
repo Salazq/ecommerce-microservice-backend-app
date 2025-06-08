@@ -413,9 +413,9 @@ stages:
     displayName: 'Run Postman Collections'
     pool:
       vmImage: 'ubuntu-latest'
-    
     steps:
-    # Instalar Newman
+    - checkout: self
+    
     - task: Npm@1
       displayName: 'Install Newman'
       inputs:
