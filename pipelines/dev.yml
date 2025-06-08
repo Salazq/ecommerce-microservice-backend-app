@@ -255,6 +255,7 @@ stages:
         - bash: |
             echo "Ejecutando escaneo ZAP..."
             mkdir -p owaspzap
+            echo "Iniciando escaneo contra http://$(NGINX_IP)"
             zaproxy -cmd -quickurl "http://$(NGINX_IP)" -quickout owaspzap/report.json -quickprogress
           displayName: 'Ejecutar ZAP scan en modo headless'
 
