@@ -61,3 +61,11 @@ class ProxyClientUser(HttpUser):
     @task
     def get_credentials(self):
         self.client.get("user-service/api/credentials")
+
+    @task
+    def getShippings(self):
+        self.client.get("/shipping-service/api/shippings/")
+    
+    @task
+    def getPayments(self):
+        self.client.get("/payment-service/api/payments/")
