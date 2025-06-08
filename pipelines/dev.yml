@@ -245,6 +245,15 @@ stages:
       variables:
         NGINX_IP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
       steps:
+        - task: AzureCLI@2
+          displayName: 'Login to Azure y obtener credenciales del clúster'
+          inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+        
         - bash: |
             echo "Instalando OWASP ZAP..."
             sudo apt-get update
@@ -255,8 +264,9 @@ stages:
         - bash: |
             echo "Ejecutando escaneo ZAP..."
             mkdir -p owaspzap
-            echo "Iniciando escaneo contra http://$(NGINX_IP)"
-            zaproxy -cmd -quickurl "http://$(NGINX_IP)" -quickout owaspzap/report.json -quickprogress
+            IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+            echo "Iniciando escaneo contra http://$IP"
+            zaproxy -cmd -quickurl "http://$IP" -quickout owaspzap/report.json -quickprogress
           displayName: 'Ejecutar ZAP scan en modo headless'
 
         - bash: |
