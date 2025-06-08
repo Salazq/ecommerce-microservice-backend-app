@@ -1,20 +1,278 @@
-
 trigger:
-- dev
+  branches:
+    include:
+      - dev
+  paths:
+    include:
+      - service-discovery/**
+      - cloud-config/**
+      - api-gateway/**
+      - proxy-client/**
+      - order-service/**
+      - product-service/**
+      - user-service/**
+      - shipping-service/**
+      - payment-service/**
+      - favourite-service/**
+      - nginx/**
 
-pool:
-  vmImage: ubuntu-latest
+variables:
+  - group: variable-group-taller
+  - name: tag
+    value: latest
+  - name: aksResourceGroup
+    value: 'dev-resource-group'
+  - name: aksClusterName
+    value: 'dev-aks-cluster'
+  - name: kubernetesNamespace
+    value: 'ecommerce'
+  - name: dockerHubUsername
+    value: 'salazq'
 
-steps:
-- task: Maven@3
-  inputs:
-    mavenPomFile: 'pom.xml'
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '11'
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    goals: 'package'
+stages:
+
+- stage: Tests
+  displayName: 'Run Tests and Coverage for All Services'
+  jobs:
+    - job: RunAllTests
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - checkout: self
+        - task: Maven@4
+          displayName: 'Run Tests and Generate Coverage'
+          inputs:
+            mavenPomFile: 'pom.xml'
+            goals: 'clean verify'
+            options: '-Dmaven.test.failure.ignore=false -Dspring.profiles.active=test'
+            publishJUnitTestResults: true
+            testResultsFiles: '**/target/surefire-reports/TEST-*.xml,**/target/failsafe-reports/TEST-*.xml'
+            javaHomeOption: 'JDKVersion'
+            jdkVersionOption: '1.11'
+            mavenVersionOption: 'Default'
+            mavenAuthenticateFeed: false
+            effectivePomSkip: false 
+        
+        - task: PublishTestResults@2
+          inputs:
+            testResultsFormat: 'JUnit'
+            testResultsFiles: '**/target/surefire-reports/TEST-*.xml'
+          
+        - task: PublishCodeCoverageResults@2
+          inputs:
+            summaryFileLocation: 'jacoco-report-aggregation/target/site/jacoco-aggregate/jacoco.xml'
+            pathToSources: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
+
+        # Publica solo el reporte HTML agregado como artefacto descargable
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish Aggregate Coverage HTML Report'
+          condition: succeeded()
+          inputs:
+            pathToPublish: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
+            artifactName: 'AggregateCoverageReport'
+            publishLocation: 'Container'
+    
+- stage: BuildAndPushImages
+  displayName: 'Build and Push Docker Images'
+  jobs:
+    - job: BuildImages
+      displayName: 'Build and Push All Docker Images'
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - checkout: self
+
+        - task: PowerShell@2
+          displayName: 'Execute build-all.ps1'
+          inputs:
+            targetType: 'filePath'
+            filePath: '$(System.DefaultWorkingDirectory)/build-all.ps1'
+            arguments: "-DockerHubUsername $(dockerHubUsername) -Tag $(tag)"
+            workingDirectory: '$(System.DefaultWorkingDirectory)'
+            pwsh: true
+
+- stage: Deploy
+  displayName: 'Deploy to AKS'
+  jobs:
+  - deployment: DeployToAKS
+    displayName: 'Deploy Microservices to AKS'
+    environment: 'development'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: AzureCLI@2
+            displayName: 'Get AKS credentials'
+            inputs:
+              azureSubscription: $(AZURE_ACCOUNT)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+          - task: Kubernetes@1
+            displayName: 'Create Namespace'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/namespace.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Deploy Zipkin'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/zipkin.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Deploy Cloud Config Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/cloud-config.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Service Discovery'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/service-discovery.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Deploy API Gateway'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/api-gateway.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Deploy User Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/user-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Product Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/product-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Order Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/order-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Payment Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/payment-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Favourite Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/favourite-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Shipping Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/shipping-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Proxy Client'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/proxy-client.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Nginx'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/nginx.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Verify Deployment Status'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'get'
+              arguments: 'pods -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Get Services Status'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'get'
+              arguments: 'services -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
 
 
