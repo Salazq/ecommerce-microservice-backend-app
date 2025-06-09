@@ -523,7 +523,7 @@ stages:
             script: |
               Write-Host "📦 Installing Locust and dependencies..."
               python -m pip install --upgrade pip
-              pip install -r load-testing/requirements.txt
+              pip install -r requirements.txt
               Write-Host "✅ Locust dependencies installed successfully"
               python -m locust --version
 
@@ -534,13 +534,12 @@ stages:
             targetType: 'inline'
             script: |
               Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
-              $env:PUBLIC_IP = "$(nginxPublicIP)"
-              powershell -ExecutionPolicy Bypass -File load-testing\run-locust.ps1
+              .\run-locust.ps1 -TargetIP "$(nginxPublicIP)"
 
         # Publicar resultados
         - task: PublishBuildArtifacts@1
           inputs:
-            pathToPublish: 'load-testing/resultados-carga'
+            pathToPublish: 'resultados-carga'
             artifactName: 'locust-load-results'
 
 - stage: NotifyFailure
