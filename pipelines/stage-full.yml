@@ -429,6 +429,13 @@ stages:
         command: 'custom'
         customCommand: 'install -g newman-reporter-htmlextra'
     
+    # Instalar Newman JUnit Reporter
+    - task: Npm@1
+      displayName: 'Install Newman JUnit Reporter'
+      inputs:
+        command: 'custom'
+        customCommand: 'install -g newman-reporter-junit'
+    
     - task: NewmanPostman@4
       inputs:
         collectionSourceType: 'file'
@@ -436,14 +443,14 @@ stages:
         Contents: '**/*.postman_collection.json'
         environmentSourceType: 'none'
         envVars: 'baseUrl=$(base_url)'
-        reporters: 'json, htmlextra, junit'
+        reporters: 'json,htmlextra,junit'  # Sin espacios después de las comas
         reporterHtmlExtraExport: 'pattern-collections-report.html'
         htmlExtraReportTitle: 'API Tests'
         reporterJsonExport: 'pattern-collections-json.json'
         reporterJUnitExport: 'pattern-collections-junit.xml'
         pathToNewman: 'newman'
       
-      # Publicar resultados de tests
+    # Publicar resultados de tests
     - task: PublishTestResults@2
       displayName: 'Publish Test Results'
       condition: always()
