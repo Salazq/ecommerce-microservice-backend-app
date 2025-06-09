@@ -409,6 +409,10 @@ stages:
 
 - stage: TestAPI
   displayName: 'API Testing with Newman'
+  dependsOn: GetNginxIP
+  condition: succeeded()
+  variables:
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
   - job: RunPostmanTests
     displayName: 'Run Postman Collections'
@@ -427,7 +431,7 @@ stages:
         collectionFileSource: 'postman-collections'
         Contents: '**/*.postman_collection.json'
         environmentSourceType: 'none'
-        envVars: 'baseUrl=$(base_url)'
+        envVars: 'baseUrl=$(nginxPublicIP)'
         reporters: 'htmlextra,junit'
         htmlExtraDarkTheme: true
         htmlExtraLogs: true
@@ -464,7 +468,7 @@ stages:
   dependsOn: GetNginxIP
   condition: succeeded()
   variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+    nginxPublicIP: $(base_url)
   jobs:
     - job: Load
       displayName: 'Load Testing with Locust'
