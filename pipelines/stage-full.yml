@@ -564,16 +564,6 @@ stages:
             artifactName: 'locust-stress-results'
           condition: always()
 
-        - task: publishhtmlreport@1
-          inputs:
-            htmlType: 'genericHTML'
-            htmlPath: 'load-testing/resultados-carga/load_test_CARGA_report.html'
-
-        - task: publishhtmlreport@1
-          inputs:
-            htmlType: 'genericHTML'
-            htmlPath: 'load-testing/resultados-estres/load_test_ESTRES_report.html'
-
 - stage: NotifyFailure
   displayName: "Notificar Fallo en Teams"
   dependsOn:
