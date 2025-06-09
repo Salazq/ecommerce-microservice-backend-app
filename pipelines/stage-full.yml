@@ -415,41 +415,23 @@ stages:
       vmImage: 'ubuntu-latest'
     
     steps:
-    # Instalar Newman y reporters
     - task: Npm@1
-      displayName: 'Install Newman and reporters'
       inputs:
         command: 'custom'
         customCommand: 'install newman newman-reporter-htmlextra -g'
-    
-    # Ejecutar Newman con soporte JUnit nativo
-    - script: |
-        for collection in postman-collections/*.postman_collection.json; do
-          collection_name=$(basename "$collection" .postman_collection.json)
-          echo "Running collection: $collection_name"
-          
-          newman run "$collection" \
-            --global-var "baseUrl=$(base_url)" \
-            --reporters htmlextra,junit \
-            --reporter-htmlextra-export "newman-report-${collection_name}.html" \
-            --reporter-htmlextra-title "API Tests - ${collection_name}" \
-            --reporter-htmlextra-darkTheme \
-            --reporter-htmlextra-logs \
-            --reporter-htmlextra-testPaging \
-            --reporter-junit-export "newman-junit-${collection_name}.xml"
-        done
-      displayName: 'Run Newman API Tests'
-      continueOnError: true
-    
-    # Publicar resultados de tests
-    - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
-      condition: always()
+      displayName: 'Install Newman and htmlextra reporter'
+    - task: NewmanPostman@4
       inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: '**/newman-junit-*.xml'
-        mergeTestResults: true
-        testRunTitle: 'Postman API Tests'
+        collectionSourceType: 'file'
+        collectionFileSource: 'postman-collections'
+        Contents: '**/*.postman_collection.json'
+        environmentSourceType: 'none'
+        globalVars: 'baseUrl=$(base_url)'
+        reporters: 'htmlextra'
+        htmlExtraDarkTheme: true
+        htmlExtraLogs: true
+        htmlExtraTestPaging: true
+      displayName: 'Run Newman API Tests'
     
 
 
