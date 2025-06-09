@@ -602,12 +602,107 @@ stages:
           displayName: 'Capturar IP pública del nginx'
           name: CaptureIP
 
+- stage: ZAPScan
+  displayName: 'Escaneo de Seguridad con OWASP ZAP'
+  dependsOn: GetNginxIP
+  condition: succeeded()
+  jobs:
+    - job: RunZapScan
+      displayName: 'Ejecutar OWASP ZAP contra IP pública del Nginx'
+      pool:
+        vmImage: 'ubuntu-latest'
+      variables:
+        NGINX_IP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
+      steps:
+        - task: AzureCLI@2
+          displayName: 'Login to Azure y obtener credenciales del clúster'
+          inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+        
+        - bash: |
+            echo "Instalando OWASP ZAP..."
+            sudo apt-get update
+            sudo apt-get install -y snap
+            sudo snap install zaproxy --classic
+          displayName: 'Instalar OWASP ZAP'
+
+        - bash: |
+            echo "Ejecutando escaneo ZAP..."
+            mkdir -p owaspzap
+            IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+            echo "Iniciando escaneo contra http://$IP/user-service/api/users"
+            zaproxy -cmd -quickurl "http://$IP/user-service/api/users" -quickout "$(System.DefaultWorkingDirectory)/owaspzap/report.json" -quickprogress
+          displayName: 'Ejecutar ZAP scan en modo headless'
+
+        - bash: |
+            sudo npm install -g handlebars-cmd
+            cat <<EOF > owaspzap/nunit-template.hbs
+            {{#each site}}
+            <test-run
+                id="2"
+                name="Owasp test"
+                start-time="{{../[@generated]}}"  >
+                <test-suite
+                    id="{{@index}}"
+                    type="Assembly"
+                    name="{{[@name]}}"
+                    result="Failed"
+                    failed="{{alerts.length}}">
+                    <attachments>
+                        <attachment>
+                            <filePath>owaspzap/report.html</filePath>
+                        </attachment>
+                    </attachments>
+                {{#each alerts}}<test-case
+                    id="{{@index}}"
+                    name="{{alert}}"
+                    result="Failed"
+                    fullname="{{alert}}"
+                    time="1">
+                        <failure>
+                                <message>
+                                 <![CDATA[{{{desc}}}]]>
+                            </message>
+                            <stack-trace>
+                                <![CDATA[
+            Solution:
+            {{{solution}}}
+            Reference:
+            {{{reference}}}
+            instances:{{#each instances}}
+            * {{uri}}
+                - {{method}}
+                {{#if evidence}}- {{{evidence}}}{{/if}}
+                                 {{/each}}]]>
+                             </stack-trace>
+                        </failure>
+                </test-case>
+                {{/each}}
+                </test-suite>
+            </test-run>
+            {{/each}}
+            EOF
+          displayName: 'Crear plantilla NUnit para reporte OWASP ZAP'
+
+        - bash: 'handlebars owaspzap/report.json < owaspzap/nunit-template.hbs > owaspzap/test-results.xml'
+          displayName: 'Generar archivo de resultados NUnit'
+
+        - task: PublishTestResults@2
+          displayName: 'Publicar resultados del escaneo'
+          inputs:
+            testResultsFormat: 'NUnit'
+            testResultsFiles: 'owaspzap/test-results.xml'
+
 
 
 
 - stage: TestAPI
   displayName: 'API Testing with Newman'
-  dependsOn: GetNginxIP
+  dependsOn: ZAPScan
   condition: succeeded()
   variables:
     nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
@@ -694,7 +789,7 @@ stages:
       
 - stage: LoadTests
   displayName: 'Run Load Tests with Locust'
-  dependsOn: GetNginxIP
+  dependsOn: TestAPI
   condition: succeeded()
   variables:
     nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
@@ -768,6 +863,8 @@ stages:
     - Tests
     - Deploy
     - GetNginxIP
+    - TestAPI
+    - ZAPScan
     - LoadTests
   condition: failed()
   jobs:
