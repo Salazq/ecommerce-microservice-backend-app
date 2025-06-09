@@ -409,6 +409,10 @@ stages:
 
 - stage: TestAPI
   displayName: 'API Testing with Newman'
+  dependsOn: GetNginxIP
+  condition: succeeded()
+  variables:
+    nginxPublicIP: $(base_url)
   jobs:
   - job: RunPostmanTests
     displayName: 'Run Postman Collections'
@@ -421,50 +425,81 @@ stages:
         command: 'custom'
         customCommand: 'install newman newman-reporter-htmlextra -g'
       displayName: 'Install Newman and htmlextra reporter'
-    - task: NewmanPostman@4
-      inputs:
-        collectionSourceType: 'file'
-        collectionFileSource: 'postman-collections'
-        Contents: '**/*.postman_collection.json'
-        environmentSourceType: 'none'
-        envVars: 'baseUrl=$(base_url)'
-        reporters: 'htmlextra,junit'
-        htmlExtraDarkTheme: true
-        htmlExtraLogs: true
-        htmlExtraTestPaging: true
-        reporterJunitExport: '$(Agent.TempDirectory)/newman-results.xml'
-        reporterHtmlExtraExport: '$(Agent.TempDirectory)/newman-report.html'
+    
+    # Crear directorio para reportes
+    - script: |
+        mkdir -p $(Agent.TempDirectory)/newman-reports
+        echo "Base URL: $(nginxPublicIP)"
+      displayName: 'Setup Reports Directory'
+    
+    # Ejecutar cada colección individualmente
+    - script: |
+        success=true
+        for collection in postman-collections/*.postman_collection.json; do
+          if [ -f "$collection" ]; then
+            collection_name=$(basename "$collection" .postman_collection.json)
+            echo "========================================="
+            echo "Running collection: $collection_name"
+            echo "========================================="
+            
+            newman run "$collection" \
+              --env-var baseUrl=$(nginxPublicIP) \
+              --reporters htmlextra,junit,cli \
+              --reporter-htmlextra-export $(Agent.TempDirectory)/newman-reports/${collection_name}-report.html \
+              --reporter-htmlextra-darkTheme \
+              --reporter-htmlextra-logs \
+              --reporter-htmlextra-testPaging \
+              --reporter-junit-export $(Agent.TempDirectory)/newman-reports/${collection_name}-results.xml \
+              --color on
+            
+            if [ $? -ne 0 ]; then
+              echo "❌ Collection $collection_name failed"
+              success=false
+            else
+              echo "✅ Collection $collection_name passed"
+            fi
+            echo ""
+          fi
+        done
+        
+        # Crear reporte consolidado
+        echo "========================================="
+        echo "Test Summary:"
+        echo "========================================="
+        ls -la $(Agent.TempDirectory)/newman-reports/
+        
+        if [ "$success" = false ]; then
+          echo "Some tests failed, but continuing to publish results..."
+          exit 1
+        fi
       displayName: 'Run Newman Tests'
       continueOnError: true
     
-    # Publicar resultados de pruebas
+    # Publicar todos los resultados XML
     - task: PublishTestResults@2
       inputs:
         testResultsFormat: 'JUnit'
-        testResultsFiles: '$(Agent.TempDirectory)/newman-results.xml'
+        testResultsFiles: '$(Agent.TempDirectory)/newman-reports/*-results.xml'
         testRunTitle: 'Newman API Tests'
+        mergeTestResults: true
       displayName: 'Publish Test Results'
       condition: always()
     
-    # Publicar reporte HTML como artefacto
+    # Publicar todos los reportes HTML
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: '$(Agent.TempDirectory)/newman-report.html'
-        artifactName: 'newman-html-report'
+        pathToPublish: '$(Agent.TempDirectory)/newman-reports'
+        artifactName: 'newman-reports'
         publishLocation: 'Container'
-      displayName: 'Publish HTML Report'
+      displayName: 'Publish HTML Reports'
       condition: always()
-
-
-    
-
-
+      
 - stage: LoadTests
   displayName: 'Run Load Tests with Locust'
   dependsOn: GetNginxIP
   condition: succeeded()
   variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+    nginxPublicIP: $(base_url)
   jobs:
     - job: Load
       displayName: 'Load Testing with Locust'
