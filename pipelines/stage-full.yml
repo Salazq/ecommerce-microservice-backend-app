@@ -32,8 +32,8 @@ variables:
     value: '57.152.56.110'
   - name: vmImageName
     value: 'ubuntu-latest'
-  - name: dockerHubUsername
-    value: 'salazq'
+  - name: nginxServiceName
+    value: 'nginx-proxy'
 
 stages:
 
