@@ -426,14 +426,14 @@ stages:
     - task: NewmanPostman@4
       inputs:
         collectionSourceType: 'file'
-        collectionFileSource: 'postman-collections/01-UserRegistration.postman_collection.json'
+        collectionFileSource: 'postman-collections'
+        Contents: '**/*.postman_collection.json'
         environmentSourceType: 'none'
         envVars: 'baseUrl=$(base_url)'
-        reporters: 'cli,htmlextra'
+        reporters: 'htmlextra'
         htmlExtraDarkTheme: true
         htmlExtraLogs: true
         htmlExtraTestPaging: true
-        stopOnFirstError: false
       displayName: 'Run Single Newman Test (Debug)'
 
 
