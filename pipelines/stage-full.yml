@@ -420,20 +420,20 @@ stages:
         command: 'custom'
         customCommand: 'install newman newman-reporter-htmlextra -g'
       displayName: 'Install Newman and htmlextra reporter'
-    
-    # Debug: Primero probar una sola colección
     - task: NewmanPostman@4
       inputs:
         collectionSourceType: 'file'
-        collectionFileSource: 'postman-collections/01-UserRegistration.postman_collection.json'
+        collectionFileSource: 'postman-collections'
+        Contents: '**/*.postman_collection.json'
         environmentSourceType: 'none'
-        globalVars: 'baseUrl=$(base_url)'
-        reporters: 'cli,htmlextra'
+        envVars: 'baseUrl=$(base_url)'
+        reporters: 'htmlextra'
         htmlExtraDarkTheme: true
         htmlExtraLogs: true
         htmlExtraTestPaging: true
-        stopOnFirstError: false
-      displayName: 'Run Single Newman Test (Debug)'
+      displayName: 'Run Newman API Tests'
+
+
     
 
 
