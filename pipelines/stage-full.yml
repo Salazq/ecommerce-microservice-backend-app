@@ -536,11 +536,31 @@ stages:
               Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
               .\run-locust.ps1 -TargetIP "$(nginxPublicIP)"
 
-        # Publicar resultados
+        # Publicar resultados de carga
         - task: PublishBuildArtifacts@1
+          displayName: 'Publish Load Test Results'
           inputs:
-            pathToPublish: 'resultados-carga'
+            pathToPublish: 'load-testing/resultados-carga'
             artifactName: 'locust-load-results'
+          condition: always()
+
+        # Publicar resultados de estrés
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish Stress Test Results'
+          inputs:
+            pathToPublish: 'load-testing/resultados-estres'
+            artifactName: 'locust-stress-results'
+          condition: always()
+
+        - task: publishhtmlreport@1
+          inputs:
+            htmlType: 'genericHTML'
+            htmlPath: 'load-testing/resultados-carga'
+
+        - task: publishhtmlreport@1
+          inputs:
+            htmlType: 'genericHTML'
+            htmlPath: 'load-testing/resultados-estres'
 
 - stage: NotifyFailure
   displayName: "Notificar Fallo en Teams"
