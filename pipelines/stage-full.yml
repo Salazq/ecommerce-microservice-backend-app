@@ -41,9 +41,22 @@ stages:
         vmImage: 'ubuntu-latest'
       steps:
         - checkout: self
+
+        - task: SonarCloudPrepare@3
+          inputs:
+            SonarQube: 'SonarCloud'
+            organization: 'ecommerce-microservice-backend'
+            scannerMode: 'other'
+            extraProperties: |
+              # Additional properties that will be passed to the scanner,
+              # Put one key=value per line, example:
+              # sonar.exclusions=**/*.bin
+              sonar.projectKey=salazq_ecommerce-microservice-backend-app
+              sonar.projectName=ecommerce-microservice-backend-app
         - task: Maven@4
           displayName: 'Run Tests and Generate Coverage'
           inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'
             mavenPomFile: 'pom.xml'
             goals: 'clean verify'
             options: '-Dmaven.test.failure.ignore=false -Dspring.profiles.active=test'
@@ -53,7 +66,9 @@ stages:
             jdkVersionOption: '1.11'
             mavenVersionOption: 'Default'
             mavenAuthenticateFeed: false
-            effectivePomSkip: false 
+            effectivePomSkip: false
+            sonarQubeRunAnalysis: true
+            sqMavenPluginVersionChoice: 'latest'
         
         - task: PublishTestResults@2
           inputs:
@@ -412,7 +427,7 @@ stages:
   dependsOn: GetNginxIP
   condition: succeeded()
   variables:
-    nginxPublicIP: $(base_url)
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
   - job: RunPostmanTests
     displayName: 'Run Postman Collections'
@@ -499,7 +514,7 @@ stages:
   dependsOn: GetNginxIP
   condition: succeeded()
   variables:
-    nginxPublicIP: $(base_url)
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
     - job: Load
       displayName: 'Load Testing with Locust'
