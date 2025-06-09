@@ -577,6 +577,11 @@ stages:
       pool:
         vmImage: 'ubuntu-latest'
       steps:
+
+        - script: |
+            echo "Esperando 5 minutos antes de iniciar la captura de IP..."
+            sleep 300
+          displayName: 'Esperar 5 minutos'
         - task: AzureCLI@2
           displayName: 'Login to Azure y obtener credenciales del clúster'
           inputs:
