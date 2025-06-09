@@ -406,6 +406,7 @@ stages:
 
 
 
+
 - stage: TestAPI
   displayName: 'API Testing with Newman'
   jobs:
@@ -420,18 +421,20 @@ stages:
         command: 'custom'
         customCommand: 'install newman newman-reporter-htmlextra -g'
       displayName: 'Install Newman and htmlextra reporter'
+    
+    # Debug: Primero probar una sola colección
     - task: NewmanPostman@4
       inputs:
         collectionSourceType: 'file'
-        collectionFileSource: 'postman-collections'
-        Contents: '**/*.postman_collection.json'
+        collectionFileSource: 'postman-collections/01-UserRegistration.postman_collection.json'
         environmentSourceType: 'none'
         envVars: 'baseUrl=$(base_url)'
-        reporters: 'htmlextra'
+        reporters: 'cli,htmlextra'
         htmlExtraDarkTheme: true
         htmlExtraLogs: true
         htmlExtraTestPaging: true
-      displayName: 'Run Newman API Tests'
+        stopOnFirstError: false
+      displayName: 'Run Single Newman Test (Debug)'
 
 
     
