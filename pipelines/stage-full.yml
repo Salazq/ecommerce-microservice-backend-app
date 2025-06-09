@@ -406,6 +406,7 @@ stages:
 
 
 
+
 - stage: TestAPI
   displayName: 'API Testing with Newman'
   jobs:
@@ -413,57 +414,48 @@ stages:
     displayName: 'Run Postman Collections'
     pool:
       vmImage: 'ubuntu-latest'
+    
     steps:
-    - checkout: self
-    
     - task: Npm@1
-      displayName: 'Install Newman'
       inputs:
         command: 'custom'
-        customCommand: 'install newman -g'
-    
-    # Instalar Newman HTML Extra Reporter
-    - task: Npm@1
-      displayName: 'Install Newman HTML Extra Reporter'
-      inputs:
-        command: 'custom'
-        customCommand: 'install -g newman-reporter-htmlextra'
-    
+        customCommand: 'install newman newman-reporter-htmlextra -g'
+      displayName: 'Install Newman and htmlextra reporter'
     - task: NewmanPostman@4
-      displayName: 'Run All Collections with Pattern'
-      continueOnError: true
       inputs:
+        collectionSourceType: 'file'
         collectionFileSource: 'postman-collections'
-        Contents: |
-          postman-collections/*.postman_collection.json
-        environmentSourceType: 'None'
-        environmentVariables: |
-          baseUrl=$(base_url)
-        numberOfIterations: 1
-        pathToNewman: 'newman'
-        stopOnFirstError: false
-        noColor: true
-        reporters: 'junit,htmlextra,json'
-        reporterHtmlExtraExport: 'pattern-collections-report.html'
-        reporterJunitExport: 'pattern-collections-junit.xml'
-        reporterJsonExport: 'pattern-collections-json.json'
-        enableHtmlExtraDarkTheme: true
-        enableHtmlExtraConsoleLogs: true
-        htmlExtraReportTitle: 'Pattern API Tests - $(Build.BuildNumber)'
-        disableStrictSSL: true
-        timeout: 600000
-        timeoutRequest: 30000
-        timeoutScript: 10000
-      
-      # Publicar resultados de tests
+        Contents: '**/*.postman_collection.json'
+        environmentSourceType: 'none'
+        envVars: 'baseUrl=$(base_url)'
+        reporters: 'htmlextra,junit'
+        htmlExtraDarkTheme: true
+        htmlExtraLogs: true
+        htmlExtraTestPaging: true
+        reporterJunitExport: '$(Agent.TempDirectory)/newman-results.xml'
+        reporterHtmlExtraExport: '$(Agent.TempDirectory)/newman-report.html'
+      displayName: 'Run Newman Tests'
+      continueOnError: true
+    
+    # Publicar resultados de pruebas
     - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
-      condition: always()
       inputs:
         testResultsFormat: 'JUnit'
-        testResultsFiles: '**/*junit*.xml'
-        mergeTestResults: true
-        testRunTitle: 'Postman API Tests'
+        testResultsFiles: '$(Agent.TempDirectory)/newman-results.xml'
+        testRunTitle: 'Newman API Tests'
+      displayName: 'Publish Test Results'
+      condition: always()
+    
+    # Publicar reporte HTML como artefacto
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Agent.TempDirectory)/newman-report.html'
+        artifactName: 'newman-html-report'
+        publishLocation: 'Container'
+      displayName: 'Publish HTML Report'
+      condition: always()
+
+
     
 
 
