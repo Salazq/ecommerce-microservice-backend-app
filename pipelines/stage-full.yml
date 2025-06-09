@@ -415,26 +415,12 @@ stages:
       vmImage: 'ubuntu-latest'
     
     steps:
-    # Instalar Newman
+    # Instalar Newman y reporters
     - task: Npm@1
-      displayName: 'Install Newman'
+      displayName: 'Install Newman and reporters'
       inputs:
         command: 'custom'
-        customCommand: 'install newman -g'
-    
-    # Instalar Newman HTML Extra Reporter
-    - task: Npm@1
-      displayName: 'Install Newman HTML Extra Reporter'
-      inputs:
-        command: 'custom'
-        customCommand: 'install -g newman-reporter-htmlextra'
-    
-    # Instalar Newman JUnit Reporter
-    - task: Npm@1
-      displayName: 'Install Newman JUnit Reporter'
-      inputs:
-        command: 'custom'
-        customCommand: 'install -g newman-reporter-junit'
+        customCommand: 'install newman newman-reporter-htmlextra newman-reporter-junit -g'
     
     - task: NewmanPostman@4
       inputs:
@@ -442,13 +428,15 @@ stages:
         collectionFileSource: 'postman-collections'
         Contents: '**/*.postman_collection.json'
         environmentSourceType: 'none'
-        envVars: 'baseUrl=$(base_url)'
-        reporters: 'json,htmlextra,junit'  # Sin espacios después de las comas
+        globalVars: 'baseUrl=$(base_url)'
+        reporters: 'htmlextra,junit'
+        htmlExtraDarkTheme: true
+        htmlExtraLogs: true
+        htmlExtraTestPaging: true
         reporterHtmlExtraExport: 'pattern-collections-report.html'
         htmlExtraReportTitle: 'API Tests'
-        reporterJsonExport: 'pattern-collections-json.json'
         reporterJUnitExport: 'pattern-collections-junit.xml'
-        pathToNewman: 'newman'
+      displayName: 'Run Newman API Tests'
       
     # Publicar resultados de tests
     - task: PublishTestResults@2
