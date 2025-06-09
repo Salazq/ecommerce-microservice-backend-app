@@ -523,7 +523,19 @@ stages:
             script: |
               Write-Host "📦 Installing Locust and dependencies..."
               python -m pip install --upgrade pip
-              pip install -r requirements.txt
+              
+              # Verificar si existe requirements.txt en load-testing
+              if (Test-Path "load-testing/requirements.txt") {
+                  Write-Host "Found requirements.txt in load-testing directory"
+                  pip install -r load-testing/requirements.txt
+              } elseif (Test-Path "requirements.txt") {
+                  Write-Host "Found requirements.txt in root directory"
+                  pip install -r requirements.txt
+              } else {
+                  Write-Host "No requirements.txt found, installing Locust directly"
+                  pip install locust
+              }
+              
               Write-Host "✅ Locust dependencies installed successfully"
               python -m locust --version
 
@@ -555,12 +567,12 @@ stages:
         - task: publishhtmlreport@1
           inputs:
             htmlType: 'genericHTML'
-            htmlPath: 'load-testing/resultados-carga'
+            htmlPath: 'load-testing/resultados-carga/load_test_CARGA_report.html'
 
         - task: publishhtmlreport@1
           inputs:
             htmlType: 'genericHTML'
-            htmlPath: 'load-testing/resultados-estres'
+            htmlPath: 'load-testing/resultados-estres/load_test_ESTRES_report.html'
 
 - stage: NotifyFailure
   displayName: "Notificar Fallo en Teams"
