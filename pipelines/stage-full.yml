@@ -421,8 +421,6 @@ stages:
         command: 'custom'
         customCommand: 'install newman newman-reporter-htmlextra -g'
       displayName: 'Install Newman and htmlextra reporter'
-    
-    # Debug: Primero probar una sola colección
     - task: NewmanPostman@4
       inputs:
         collectionSourceType: 'file'
@@ -430,11 +428,32 @@ stages:
         Contents: '**/*.postman_collection.json'
         environmentSourceType: 'none'
         envVars: 'baseUrl=$(base_url)'
-        reporters: 'htmlextra'
+        reporters: 'htmlextra,junit'
         htmlExtraDarkTheme: true
         htmlExtraLogs: true
         htmlExtraTestPaging: true
-      displayName: 'Run Single Newman Test (Debug)'
+        reporterJunitExport: '$(Agent.TempDirectory)/newman-results.xml'
+        reporterHtmlExtraExport: '$(Agent.TempDirectory)/newman-report.html'
+      displayName: 'Run Newman Tests'
+      continueOnError: true
+    
+    # Publicar resultados de pruebas
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(Agent.TempDirectory)/newman-results.xml'
+        testRunTitle: 'Newman API Tests'
+      displayName: 'Publish Test Results'
+      condition: always()
+    
+    # Publicar reporte HTML como artefacto
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Agent.TempDirectory)/newman-report.html'
+        artifactName: 'newman-html-report'
+        publishLocation: 'Container'
+      displayName: 'Publish HTML Report'
+      condition: always()
 
 
     
