@@ -4,10 +4,14 @@ import os
 
 class ProxyClientUser(HttpUser):
     wait_time = between(1, 5)
+    
+    # Configuración de timeouts
+    connection_timeout = 30.0
+    network_timeout = 30.0
 
-    # Usar PUBLIC_IP si está disponible, sino usar localhost
-    public_ip = os.environ.get('PUBLIC_IP', 'localhost')
-    host = f"http://{public_ip}:8080/"
+    # Usar TARGET_IP si está disponible, sino usar PUBLIC_IP, sino usar localhost
+    target_ip = os.environ.get('TARGET_IP', os.environ.get('PUBLIC_IP', 'localhost'))
+    host = f"http://{target_ip}:80/"
     
     def generate_unique_user_data(self):
         return {
@@ -60,12 +64,11 @@ class ProxyClientUser(HttpUser):
 
     @task
     def get_credentials(self):
-        self.client.get("user-service/api/credentials")
-
+        self.client.get("user-service/api/credentials")    
     @task
     def getShippings(self):
-        self.client.get("/shipping-service/api/shippings/")
+        self.client.get("shipping-service/api/shippings/")
     
     @task
     def getPayments(self):
-        self.client.get("/payment-service/api/payments/")
+        self.client.get("payment-service/api/payments/")
