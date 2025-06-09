@@ -430,30 +430,18 @@ stages:
         customCommand: 'install -g newman-reporter-htmlextra'
     
     - task: NewmanPostman@4
-      displayName: 'Run All Collections with Pattern'
-      continueOnError: true
       inputs:
+        collectionSourceType: 'file'
         collectionFileSource: 'postman-collections'
-        Contents: |
-          **/*.postman_collection.json
-        environmentSourceType: 'None'
-        environmentVariables: |
-          baseUrl=$(base_url)
-        numberOfIterations: 1
-        pathToNewman: 'newman'
-        stopOnFirstError: false
-        noColor: true
-        reporters: 'junit,htmlextra,json'
+        Contents: '**/*.postman_collection.json'
+        environmentSourceType: 'none'
+        envVars: 'baseUrl=$(base_url)'
+        reporters: 'json, htmlextra, junit'
         reporterHtmlExtraExport: 'pattern-collections-report.html'
-        reporterJunitExport: 'pattern-collections-junit.xml'
+        htmlExtraReportTitle: 'API Tests'
         reporterJsonExport: 'pattern-collections-json.json'
-        enableHtmlExtraDarkTheme: true
-        enableHtmlExtraConsoleLogs: true
-        htmlExtraReportTitle: 'Pattern API Tests - $(Build.BuildNumber)'
-        disableStrictSSL: true
-        timeout: 600000
-        timeoutRequest: 30000
-        timeoutScript: 10000
+        reporterJUnitExport: 'pattern-collections-junit.xml'
+        pathToNewman: 'newman'
       
       # Publicar resultados de tests
     - task: PublishTestResults@2
