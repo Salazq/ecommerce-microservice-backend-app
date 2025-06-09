@@ -412,7 +412,7 @@ stages:
   dependsOn: GetNginxIP
   condition: succeeded()
   variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+    nginxPublicIP: $(base_url)
   jobs:
   - job: RunPostmanTests
     displayName: 'Run Postman Collections'
