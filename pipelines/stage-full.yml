@@ -612,8 +612,6 @@ stages:
       displayName: 'Ejecutar OWASP ZAP contra IP pública del Nginx'
       pool:
         vmImage: 'ubuntu-latest'
-      variables:
-        NGINX_IP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
       steps:
         - task: AzureCLI@2
           displayName: 'Login to Azure y obtener credenciales del clúster'
@@ -705,8 +703,6 @@ stages:
   displayName: 'API Testing with Newman'
   dependsOn: ZAPScan
   condition: succeeded()
-  variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
   - job: RunPostmanTests
     displayName: 'Run Postman Collections'
@@ -715,6 +711,16 @@ stages:
     
     steps:
     - checkout: self
+    - task: AzureCLI@2
+      displayName: 'Login to Azure y obtener IP pública del nginx'
+      inputs:
+        azureSubscription: '$(AZURE_ACCOUNT)'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+          IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+          echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
     - task: Npm@1
       inputs:
         command: 'custom'
@@ -793,8 +799,6 @@ stages:
   displayName: 'Run Load Tests with Locust'
   dependsOn: TestAPI
   condition: succeeded()
-  variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
     - job: Load
       displayName: 'Load Testing with Locust'
@@ -802,6 +806,17 @@ stages:
         vmImage: 'windows-latest'
       steps:
         - checkout: self
+
+        - task: AzureCLI@2
+          displayName: 'Login to Azure y obtener IP pública del nginx'
+          inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+              IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+              echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
 
         # Instalar Python
         - task: UsePythonVersion@0
