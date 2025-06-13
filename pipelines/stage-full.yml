@@ -710,7 +710,7 @@ stages:
   dependsOn: ZAPScan
   condition: succeeded()
   variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+    nginxPublicIP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
   - job: RunPostmanTests
     displayName: 'Run Postman Collections'
@@ -797,7 +797,7 @@ stages:
   dependsOn: TestAPI
   condition: succeeded()
   variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+    nginxPublicIP: $[ dependencies.GetNginxIP.outputs['CaptureNginxIP.CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
     - job: Load
       displayName: 'Load Testing with Locust'
