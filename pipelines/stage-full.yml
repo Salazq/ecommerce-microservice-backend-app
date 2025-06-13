@@ -568,44 +568,10 @@ stages:
               arguments: 'services -n $(kubernetesNamespace)'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
 
-- stage: GetNginxIP
-  displayName: 'Obtener IP pública de nginx-proxy'
-  dependsOn: Deploy
-  jobs:
-    - job: CaptureNginxIP
-      displayName: 'Capturar IP del servicio nginx'
-      pool:
-        vmImage: 'ubuntu-latest'
-      steps:
-
-        - task: AzureCLI@2
-          displayName: 'Login to Azure y obtener credenciales del clúster'
-          inputs:
-            azureSubscription: '$(AZURE_ACCOUNT)'
-            scriptType: bash
-            scriptLocation: inlineScript
-            inlineScript: |
-              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
-
-        - script: |
-            echo "Esperando IP pública del servicio nginx..."
-            for i in {1..10}; do
-              IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-              if [[ -n "$IP" ]]; then
-                echo "IP pública obtenida: $IP"
-                echo "##vso[task.setvariable variable=NGINX_PUBLIC_IP;isOutput=true]$IP"
-                break
-              else
-                echo "IP aún no disponible, reintentando en 10 segundos..."
-                sleep 10
-              fi
-            done
-          displayName: 'Capturar IP pública del nginx'
-          name: CaptureIP
 
 - stage: ZAPScan
   displayName: 'Escaneo de Seguridad con OWASP ZAP'
-  dependsOn: GetNginxIP
+  dependsOn: Deploy
   condition: succeeded()
   jobs:
     - job: RunZapScan
@@ -613,6 +579,10 @@ stages:
       pool:
         vmImage: 'ubuntu-latest'
       steps:
+        - script: |
+            echo "Esperando 5 minutos antes de iniciar la captura de IP..."
+            sleep 300
+          displayName: 'Esperar 5 minutos'
         - task: AzureCLI@2
           displayName: 'Login to Azure y obtener credenciales del clúster'
           inputs:
@@ -879,7 +849,6 @@ stages:
   dependsOn:
     - Tests
     - Deploy
-    - GetNginxIP
     - TestAPI
     - ZAPScan
     - LoadTests
