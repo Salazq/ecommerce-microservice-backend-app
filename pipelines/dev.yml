@@ -10,187 +10,88 @@ variables:
     value: 'dev-aks-cluster'
   - name: kubernetesNamespace
     value: 'ecommerce'
+  - name: nginxServiceName
+    value: 'nginx-proxy'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
 stages:
-- stage: Deploy
-  displayName: 'Deploy to AKS'
+- stage: GetNginxIP
+  displayName: 'Obtener IP pública de nginx-proxy'
   jobs:
-  - deployment: DeployToAKS
-    displayName: 'Deploy Microservices to AKS'
-    environment: 'development'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - checkout: self
-          - task: AzureCLI@2
-            displayName: 'Get AKS credentials'
-            inputs:
-              azureSubscription: $(AZURE_ACCOUNT)
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
-          - task: Kubernetes@1
-            displayName: 'Create Namespace'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/namespace.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
+    - job: CaptureNginxIP
+      displayName: 'Capturar IP del servicio nginx'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+          
+        - task: AzureCLI@2
+          displayName: 'Login to Azure y obtener credenciales del clúster'
+          inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
 
-          - task: Kubernetes@1
-            displayName: 'Deploy Zipkin'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/zipkin.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
+        - script: |
+            echo "Esperando IP pública del servicio nginx..."
+            for i in {1..10}; do
+              IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+              if [[ -n "$IP" ]]; then
+                echo "IP pública obtenida: $IP"
+                echo "##vso[task.setvariable variable=NGINX_PUBLIC_IP;isOutput=true]$IP"
+                break
+              else
+                echo "IP aún no disponible, reintentando en 10 segundos..."
+                sleep 10
+              fi
+            done
+          displayName: 'Capturar IP pública del nginx'
+          name: CaptureIP
 
-          - task: Kubernetes@1
-            displayName: 'Deploy Cloud Config Service'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/cloud-config.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Deploy Service Discovery'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/service-discovery.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
+- stage: DisplayNginxIP
+  displayName: 'Mostrar IP pública capturada'
+  dependsOn: GetNginxIP
+  variables:
+    - name: capturedIP
+      value: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+  jobs:
+    - job: ShowIP
+      displayName: 'Imprimir IP del nginx'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - script: |
+            echo "==============================================="
+            echo "PIPELINE COMPLETADO EXITOSAMENTE"
+            echo "==============================================="
+            echo "IP PÚBLICA DEL SERVICIO NGINX:"
+            echo "$(capturedIP)"
+            echo "==============================================="
+            echo "URL del servicio: http://$(capturedIP)"
+            echo "HTTPS URL: https://$(capturedIP)"
+            echo "==============================================="
+            echo "Información del despliegue:"
+            echo "- Imagen desplegada: $(containerRegistry)/$(imageRepository):$(tag)"
+            echo "- Namespace: $(kubernetesNamespace)"
+            echo "- Servicio: $(nginxServiceName)"
+            echo "- Cluster AKS: $(aksClusterName)"
+            echo "- Resource Group: $(aksResourceGroup)"
+            echo "==============================================="
+          displayName: 'Mostrar información completa del despliegue'
+          
+        - script: |
+            if [[ -z "$(capturedIP)" ]]; then
+              echo "##vso[task.logissue type=error]No se pudo obtener la IP pública del servicio nginx"
+              echo "Verificando estado del servicio..."
+              kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) || echo "Servicio no encontrado"
+              exit 1
+            else
+              echo "##vso[task.complete result=Succeeded;]✅ Pipeline completado - IP capturada exitosamente: $(capturedIP)"
+              echo "##vso[task.setvariable variable=FINAL_NGINX_IP;isOutput=true]$(capturedIP)"
+            fi
+          displayName: 'Validar y finalizar pipeline'
+          name: FinalValidation
 
-          - task: Kubernetes@1
-            displayName: 'Deploy API Gateway'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/api-gateway.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-
-          - task: Kubernetes@1
-            displayName: 'Deploy User Service'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/user-service.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Deploy Product Service'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/product-service.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Deploy Order Service'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/order-service.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Deploy Payment Service'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/payment-service.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Deploy Favourite Service'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/favourite-service.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Deploy Shipping Service'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/shipping-service.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Deploy Proxy Client'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/proxy-client.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Deploy Nginx'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'apply'
-              arguments: '-f k8s-aks/nginx.yaml'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Verify Deployment Status'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'get'
-              arguments: 'pods -n $(kubernetesNamespace)'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
-              
-          - task: Kubernetes@1
-            displayName: 'Get Services Status'
-            inputs:
-              connectionType: 'Azure Resource Manager'
-              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
-              azureResourceGroup: $(aksResourceGroup)
-              kubernetesCluster: $(aksClusterName)
-              command: 'get'
-              arguments: 'services -n $(kubernetesNamespace)'
-              workingDirectory: '$(System.DefaultWorkingDirectory)'
