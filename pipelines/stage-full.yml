@@ -578,10 +578,6 @@ stages:
         vmImage: 'ubuntu-latest'
       steps:
 
-        - script: |
-            echo "Esperando 5 minutos antes de iniciar la captura de IP..."
-            sleep 300
-          displayName: 'Esperar 5 minutos'
         - task: AzureCLI@2
           displayName: 'Login to Azure y obtener credenciales del clúster'
           inputs:
@@ -710,8 +706,7 @@ stages:
   dependsOn: ZAPScan
   condition: succeeded()
   variables:
-    - name: nginxPublicIP
-      value: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
   - job: RunPostmanTests
     displayName: 'Run Postman Collections'
@@ -719,6 +714,7 @@ stages:
       vmImage: 'ubuntu-latest'
     
     steps:
+    - checkout: self
     - task: Npm@1
       inputs:
         command: 'custom'
@@ -798,8 +794,7 @@ stages:
   dependsOn: TestAPI
   condition: succeeded()
   variables:
-    - name: nginxPublicIP
-      value: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
     - job: Load
       displayName: 'Load Testing with Locust'
