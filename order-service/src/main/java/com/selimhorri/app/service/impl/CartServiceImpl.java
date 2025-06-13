@@ -16,6 +16,7 @@ import com.selimhorri.app.helper.CartMappingHelper;
 import com.selimhorri.app.repository.CartRepository;
 import com.selimhorri.app.service.CartService;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,8 +28,10 @@ public class CartServiceImpl implements CartService {
 	
 	private final CartRepository cartRepository;
 	private final RestTemplate restTemplate;
+	private static final String USER_SERVICE = "userService";
 	
 	@Override
+	@CircuitBreaker(name = USER_SERVICE, fallbackMethod = "fallbackFindAllUsers")
 	public List<CartDto> findAll() {
 		log.info("*** CartDto List, service; fetch all carts *");
 		return this.cartRepository.findAll()
@@ -44,6 +47,7 @@ public class CartServiceImpl implements CartService {
 	}
 	
 	@Override
+	@CircuitBreaker(name = USER_SERVICE, fallbackMethod = "fallbackFindUserById")
 	public CartDto findById(final Integer cartId) {
 		log.info("*** CartDto, service; fetch cart by id *");
 		return this.cartRepository.findById(cartId)
@@ -83,8 +87,26 @@ public class CartServiceImpl implements CartService {
 		log.info("*** Void, service; delete cart by id *");
 		this.cartRepository.deleteById(cartId);
 	}
-	
-	
+
+	// Fallback methods
+	public List<CartDto> fallbackFindAllUsers(Throwable t) {
+		log.error("Error calling userService from findAll: {}", t.getMessage());
+		// Return cached or default list of carts without user details
+		return this.cartRepository.findAll()
+				.stream()
+				.map(CartMappingHelper::map)
+				.distinct()
+				.collect(Collectors.toUnmodifiableList());
+	}
+
+	public CartDto fallbackFindUserById(Integer cartId, Throwable t) {
+		log.error("Error calling userService for cartId {}: {}", cartId, t.getMessage());
+		// Return cart details without user details from cache or default
+		return this.cartRepository.findById(cartId)
+				.map(CartMappingHelper::map)
+				.orElseThrow(() -> new CartNotFoundException(String
+						.format("Cart with id: %d not found (fallback)", cartId)));
+	}
 	
 }
 
