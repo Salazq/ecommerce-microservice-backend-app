@@ -289,7 +289,8 @@ stages:
   dependsOn: GetNginxIP
   condition: succeeded()
   variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+  - name: nginxPublicIP
+    value: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
     - job: E2E
       displayName: 'E2E Tests'
@@ -332,7 +333,8 @@ stages:
   dependsOn: GetNginxIP
   condition: succeeded()
   variables:
-    nginxPublicIP: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
+    - name: nginxPublicIP
+      value: $[ stageDependencies.GetNginxIP.CaptureNginxIP.outputs['CaptureIP.NGINX_PUBLIC_IP'] ]
   jobs:
     - job: Load
       displayName: 'Load Testing with Locust'
