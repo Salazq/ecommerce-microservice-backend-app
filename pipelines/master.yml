@@ -205,6 +205,8 @@ stages:
             tags: '$(tag)'
 
 - stage: ManualApproval
+  displayName: 'Manual Approval for Deployment'
+  dependsOn: SemanticRelease
   jobs:
   - job: waitForValidation
     displayName: Wait for external validation
@@ -214,7 +216,7 @@ stages:
     - task: ManualValidation@0
       timeoutInMinutes: 1440 # task times out in 1 day
       inputs:
-        instructions: 'Please validate the build configuration and resume'
+        instructions: 'Please validate the build configuration and semantic release. Check release notes and approve deployment.'
         onTimeout: 'resume'
 
 
@@ -410,6 +412,7 @@ stages:
   displayName: "Notificar Fallo en Teams"
   dependsOn:
     - Tests
+    - SemanticRelease
     - ManualApproval
     - Deploy
   condition: failed()
@@ -445,4 +448,60 @@ stages:
                     }
                   }]
                 }'
+
+- stage: SemanticRelease
+  displayName: 'Semantic Release & Versioning'
+  dependsOn: Tests
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  jobs:
+  - job: Release
+    displayName: 'Generate Semantic Release'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
+      persistCredentials: true
+      fetchDepth: 0
+    
+    - task: NodeTool@0
+      displayName: 'Install Node.js 18.x'
+      inputs:
+        versionSpec: '18.x'
+    
+    - script: |
+        echo "📦 Installing semantic-release dependencies..."
+        npm ci
+      displayName: 'Install Dependencies'
+    
+    - script: |
+        echo "🔍 Running semantic-release dry-run..."
+        npx semantic-release --dry-run
+      displayName: 'Semantic Release Dry Run'
+      env:
+        GITHUB_TOKEN: $(GITHUB_TOKEN)
+    
+    - script: |
+        echo "🚀 Running semantic-release..."
+        npx semantic-release
+      displayName: 'Semantic Release'
+      env:
+        GITHUB_TOKEN: $(GITHUB_TOKEN)
+        GIT_AUTHOR_NAME: Azure DevOps
+        GIT_AUTHOR_EMAIL: azuredevops@company.com
+        GIT_COMMITTER_NAME: Azure DevOps
+        GIT_COMMITTER_EMAIL: azuredevops@company.com
+    
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Release Notes'
+      inputs:
+        targetPath: 'release-notes'
+        artifact: 'release-notes'
+      condition: always()
+    
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish CHANGELOG'
+      inputs:
+        targetPath: 'CHANGELOG.md'
+        artifact: 'changelog'
+      condition: always()
 
