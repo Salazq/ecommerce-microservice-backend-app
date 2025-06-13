@@ -205,19 +205,18 @@ stages:
             tags: '$(tag)'
 
 - stage: ManualApproval
-  displayName: 'Esperar Aprobación Manual'
-  dependsOn: Tests
   jobs:
-    - job: WaitForApproval
-      displayName: 'Esperar Aprobación'
-      pool:
-        vmImage: 'ubuntu-latest'
-      steps:
-        - task: ManualValidation@0
-          inputs:
-            instructions: 'Revisar resultados de pruebas y aprobar para proceder con el despliegue a AKS.'
-            onTimeout: 'reject'
-            timeout: '1d'
+  - job: waitForValidation
+    displayName: Wait for external validation
+    pool: server
+    timeoutInMinutes: 4320 # job times out in 3 days
+    steps:
+    - task: ManualValidation@0
+      timeoutInMinutes: 1440 # task times out in 1 day
+      inputs:
+        instructions: 'Please validate the build configuration and resume'
+        onTimeout: 'resume'
+
 
 
 - stage: Deploy
