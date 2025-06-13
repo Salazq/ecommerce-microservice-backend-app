@@ -163,23 +163,16 @@
         "changelogFile": "CHANGELOG.md",
         "changelogTitle": "# Changelog\n\nAll notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines."
       }
-    ],
-    [
+    ],    [
       "@semantic-release/exec",
       {
-        "prepareCmd": "node scripts/update-version.js ${nextRelease.version}",
-        "publishCmd": "echo 'Version ${nextRelease.version} released'"
+        "publishCmd": "echo 'Version ${nextRelease.version} released to GitHub only'"
       }
-    ],
-    [
+    ],    [
       "@semantic-release/git",
       {
         "assets": [
-          "CHANGELOG.md",
-          "package.json",
-          "pom.xml",
-          "**/pom.xml",
-          "release-notes/*.md"
+          "CHANGELOG.md"
         ],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
