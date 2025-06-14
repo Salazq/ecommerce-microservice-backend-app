@@ -1,14 +1,7 @@
-# Usar la imagen base oficial de nginx
-FROM nginx:latest
+FROM openresty/openresty:alpine
 
-# Eliminar la configuración por defecto
-RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
 
-# Copiar nuestra configuración personalizada
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Exponer el puerto 80
 EXPOSE 80
 
-# Comando por defecto (ya incluido en la imagen base de nginx)
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["openresty", "-g", "daemon off;"]
