@@ -8,6 +8,8 @@ variables:
     value: 'dev-aks-cluster'
   - name: kubernetesNamespace
     value: 'ecommerce'
+  - name: tag
+    value: 'latest'
 
 stages:
 - stage: ReplaceNginx
@@ -41,6 +43,16 @@ stages:
               command: 'delete'
               arguments: '-f k8s-aks/nginx.yaml -n $(kubernetesNamespace)'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
+          
+          - task: Docker@2
+            displayName: Build and Push nginx
+            inputs:
+              containerRegistry: 'docker-hub-service'
+              repository: 'salazq/nginx'
+              command: 'buildAndPush'
+              Dockerfile: 'nginx/Dockerfile'
+              buildContext: 'nginx/'
+              tags: '$(tag)'
 
           - task: Kubernetes@1
             displayName: 'Apply New Nginx Deployment'
