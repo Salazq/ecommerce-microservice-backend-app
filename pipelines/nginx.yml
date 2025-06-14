@@ -39,7 +39,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'delete'
-              arguments: '-f k8s-aks/nginx.yaml -n $(kubernetesNamespace)'
+              arguments: '-f k8s-aks/nginx.yaml -n $(kubernetesNamespace) --ignore-not-found'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
           
           - task: Docker@2
