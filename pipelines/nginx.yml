@@ -8,6 +8,8 @@ variables:
     value: 'dev-aks-cluster'
   - name: kubernetesNamespace
     value: 'ecommerce'
+  - name: tag
+    value: latest
 
 stages:
 - stage: ReplaceNginx
