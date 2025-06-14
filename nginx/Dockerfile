@@ -1,7 +1,9 @@
-FROM openresty/openresty:alpine
+FROM nginx:alpine
 
-COPY nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+RUN apk add --no-cache nginx-mod-http-substitutions-filter
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-CMD ["openresty", "-g", "daemon off;"]
+CMD ["nginx", "-g", "daemon off;"]
