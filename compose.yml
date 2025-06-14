@@ -194,8 +194,6 @@ services:
     build:
       context: ./nginx
       dockerfile: Dockerfile
-    # Alternativamente, puedes usar tu imagen desde Docker Hub:
-    # image: tuusername/nginx-proxy:latest  # Cambia 'tuusername' por tu username
     container_name: nginx
     ports:
       - "80:80"

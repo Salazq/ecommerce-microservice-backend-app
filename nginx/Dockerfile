@@ -4,7 +4,10 @@ FROM nginx:latest
 # Eliminar la configuración por defecto
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copiar nuestra configuración personalizada
+# Copiar la configuración principal de nginx
+COPY nginx-main.conf /etc/nginx/nginx.conf
+
+# Copiar nuestra configuración de servidor
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Exponer el puerto 80
