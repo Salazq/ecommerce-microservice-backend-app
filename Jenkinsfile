@@ -290,7 +290,8 @@ def getDeploymentServicesList() {
         'product-service',
         'user-service',
         'shipping-service',
-        'nginx'/*,
+        'nginx',
+        'favourite-service'/*,
         'payment-service',
         'favourite-service'*/
     ]
