@@ -215,6 +215,33 @@ services:
       restart_policy:
         condition: on-failure        
         delay: 15s
+  favourite-service:
+      build:
+        context: ./favourite-service
+        dockerfile: Dockerfile
+      container_name: favourite-service
+      ports:
+        - 8800:8800
+      depends_on:
+        api-gateway:
+          condition: service_healthy
+      environment:
+        - SPRING_PROFILES_ACTIVE=dev
+        - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
+        - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
+        - EUREKA_INSTANCE=favourite-service
+      networks:
+        - ecommerce-network
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8800/favourite-service/actuator/health"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+      deploy:
+        restart_policy:
+          condition: on-failure
+          delay: 15s
+
 
   # shipping-service:
   #   build:
@@ -268,33 +295,7 @@ services:
   #     restart_policy:
   #       condition: on-failure
   #       delay: 15s
-  # favourite-service:
-  #   build:
-  #     context: ./favourite-service
-  #     dockerfile: Dockerfile
-  #   container_name: favourite-service
-  #   ports:
-  #     - 8800:8800
-  #   depends_on:
-  #     payment-service:
-  #       condition: service_healthy
-  #   environment:
-  #     - SPRING_PROFILES_ACTIVE=dev
-  #     - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
-  #     - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
-  #     - EUREKA_INSTANCE=favourite-service
-  #   networks:
-  #     - ecommerce-network
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8800/favourite-service/actuator/health"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   deploy:
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 15s
-
+    
 networks:
   ecommerce-network:
     driver: bridge

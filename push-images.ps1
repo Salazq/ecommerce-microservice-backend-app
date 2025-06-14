@@ -1,6 +1,6 @@
 param(
-    [string]$DockerHubUsername = "salazq",
-    [string]$Tag = "latest",
+    [string]$DockerHubUsername = "samuelgutierrez24",
+    [string]$Tag = "lastest",
     [switch]$SkipBuild,
     [switch]$PushOnly
 )
