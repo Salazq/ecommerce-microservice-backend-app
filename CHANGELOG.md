@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.3](https://github.com/Salazq/ecommerce-microservice-backend-app/compare/v1.0.2...v1.0.3) (2025-06-15)
+
+
+### 🐛 Bug Fixes
+
+* stuff ([fee59bd](https://github.com/Salazq/ecommerce-microservice-backend-app/commit/fee59bd6b517442439fc13a52e6aabe58e7d5d1b))
+* zipkin url ([6bc3e1b](https://github.com/Salazq/ecommerce-microservice-backend-app/commit/6bc3e1bc875af11ed20c8cecb6a66ef0b9d4e4ee))
+
 ## [1.0.2](https://github.com/Salazq/ecommerce-microservice-backend-app/compare/v1.0.1...v1.0.2) (2025-06-15)
 
 
