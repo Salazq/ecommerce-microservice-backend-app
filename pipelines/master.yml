@@ -37,7 +37,6 @@ stages:
 
 - stage: Tests
   displayName: 'Run Tests and Coverage for All Services'
-  condition: false
   jobs:
     - job: RunAllTests
       pool:
@@ -207,7 +206,6 @@ stages:
 
 - stage: ManualApproval
   displayName: 'Manual Approval for Deployment'
-  condition: false
   dependsOn: Tests
   jobs:
   - job: waitForValidation
@@ -223,6 +221,7 @@ stages:
 
 - stage: CheckNamespaceAndRedeployModifiedServices
   displayName: 'Check Namespace and Redeploy Modified Services'
+  dependsOn: ManualApproval
   jobs:
     - job: CheckAndRedeploy
       displayName: 'Verificar Namespace y Reemplazar Servicios Modificados'
