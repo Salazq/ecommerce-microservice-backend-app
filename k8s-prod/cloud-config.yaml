@@ -36,7 +36,7 @@ spec:
         - name: SPRING_PROFILES_ACTIVE
           value: "dev"        
         - name: SPRING_ZIPKIN_BASE_URL
-          value: "http://grafana-k8s-monitoring-alloy-receiver.default.svc.cluster.local:9411/"
+          value: "http://grafana-k8s-monitoring-alloy-receiver.ecommerce.svc.cluster.local:9411/"
         - name: EUREKA_INSTANCE
           value: "cloud-config"
         readinessProbe:
