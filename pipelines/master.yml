@@ -223,7 +223,6 @@ stages:
 
 - stage: CheckNamespaceAndRedeployModifiedServices
   displayName: 'Check Namespace and Redeploy Modified Services'
-  dependsOn: ManualApproval
   jobs:
     - job: CheckAndRedeploy
       displayName: 'Verificar Namespace y Reemplazar Servicios Modificados'
