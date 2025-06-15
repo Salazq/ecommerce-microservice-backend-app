@@ -19,17 +19,15 @@ trigger:
 variables:
   - group: variable-group-taller
   - name: tag
-    value: latest
+    value: prod
   - name: aksResourceGroup
-    value: 'dev-resource-group'
+    value: 'prod-resource-group'
   - name: aksClusterName
-    value: 'dev-aks-cluster'
+    value: 'prod-aks-cluster'
   - name: kubernetesNamespace
     value: 'ecommerce'
   - name: dockerHubUsername
     value: 'salazq'
-  - name: base_url
-    value: '57.152.56.110'
   - name: vmImageName
     value: 'ubuntu-latest'
   - name: nginxServiceName
@@ -219,11 +217,46 @@ stages:
         instructions: 'Please validate the build configuration and semantic release. Check release notes and approve deployment.'
         onTimeout: 'resume'
 
+- stage: DeployGrafanaMonitoring
+  displayName: 'Deploy Grafana Monitoring Stack'
+  dependsOn: ManualApproval
+  condition: succeeded()
+  jobs:
+    - job: RunGrafanaMonitoring
+      displayName: 'Deploy .grafana script to AKS'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: AzureCLI@2
+          displayName: 'Login to AKS Cluster'
+          inputs:
+            azureSubscription: $(AZURE_ACCOUNT)  # Cambia esto por tu nombre de servicio (Service Connection)
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+          env:
+            AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_CERTIFICATE: $(AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_CERTIFICATE)
+
+        - task: DownloadSecureFile@1
+          name: grafanaDeployScriptFile
+          displayName: 'Download .grafana script'
+          inputs:
+            secureFile: 'grafana3'
+
+        - script: |
+            chmod +x $(grafanaDeployScriptFile.secureFilePath)
+          displayName: 'Dar permisos de ejecución al script'
+
+        - task: Bash@3
+          displayName: 'Ejecutar script .grafana'
+          inputs:
+            filePath: $(grafanaDeployScriptFile.secureFilePath)
 
 
 - stage: Deploy
   displayName: 'Deploy to AKS'
-  dependsOn: ManualApproval
+  dependsOn: DeployGrafanaMonitoring
   jobs:
   - deployment: DeployToAKS
     displayName: 'Deploy Microservices to AKS'
@@ -249,7 +282,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/namespace.yaml'
+              arguments: '-f k8s-$(tag)/namespace.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
@@ -260,7 +293,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/zipkin.yaml'
+              arguments: '-f k8s-$(tag)/zipkin.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
@@ -271,7 +304,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/cloud-config.yaml'
+              arguments: '-f k8s-$(tag)/cloud-config.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -282,7 +315,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/service-discovery.yaml'
+              arguments: '-f k8s-$(tag)/service-discovery.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
@@ -293,7 +326,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/api-gateway.yaml'
+              arguments: '-f k8s-$(tag)/api-gateway.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
@@ -304,7 +337,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/user-service.yaml'
+              arguments: '-f k8s-$(tag)/user-service.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -315,7 +348,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/product-service.yaml'
+              arguments: '-f k8s-$(tag)/product-service.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -326,7 +359,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/order-service.yaml'
+              arguments: '-f k8s-$(tag)/order-service.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -337,7 +370,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/payment-service.yaml'
+              arguments: '-f k8s-$(tag)/payment-service.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -348,7 +381,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/favourite-service.yaml'
+              arguments: '-f k8s-$(tag)/favourite-service.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -359,7 +392,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/shipping-service.yaml'
+              arguments: '-f k8s-$(tag)/shipping-service.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -370,7 +403,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/proxy-client.yaml'
+              arguments: '-f k8s-$(tag)/proxy-client.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -381,7 +414,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/nginx.yaml'
+              arguments: '-f k8s-$(tag)/nginx.yaml'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
               
           - task: Kubernetes@1
@@ -471,7 +504,7 @@ stages:
     - SemanticRelease
     - ManualApproval
     - Deploy
-    - SemanticRelease
+    - DeployGrafanaMonitoring
   condition: failed()
   jobs:
     - job: NotifyJob
