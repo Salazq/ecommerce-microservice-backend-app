@@ -9,7 +9,7 @@ variables:
   - name: kubernetesNamespace
     value: 'ecommerce'
   - name: tag
-    value: latest
+    value: stage
 
 stages:
 - stage: ReplaceNginx
@@ -41,7 +41,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'delete'
-              arguments: '-f k8s-aks/nginx.yaml -n $(kubernetesNamespace) --ignore-not-found'
+              arguments: '-f k8s-$(tag)/nginx.yaml -n $(kubernetesNamespace) --ignore-not-found'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
           
           - task: Docker@2
@@ -62,7 +62,7 @@ stages:
               azureResourceGroup: $(aksResourceGroup)
               kubernetesCluster: $(aksClusterName)
               command: 'apply'
-              arguments: '-f k8s-aks/nginx.yaml -n $(kubernetesNamespace)'
+              arguments: '-f k8s-$(tag)/nginx.yaml -n $(kubernetesNamespace)'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
 
           - task: Kubernetes@1
