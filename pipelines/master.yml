@@ -63,26 +63,25 @@ stages:
 
         - script: |
             echo "🔍 Detectando carpetas modificadas..."
-            git diff --name-only HEAD^ HEAD > changed_files.txt
-            grep '/' changed_files.txt | cut -d/ -f1 | sort -u > changed_dirs_raw.txt
+            git fetch origin
+            git diff --name-only origin/master...HEAD | cut -d/ -f1 | sort -u > changed_dirs_raw.txt
 
-            # Lista de carpetas válidas
-            allowed_dirs=(
-              service-discovery
-              cloud-config
-              api-gateway
-              proxy-client
-              order-service
-              product-service
-              user-service
-              shipping-service
-              payment-service
-              favourite-service
-              nginx
-            )
+            echo "🧩 Filtrando carpetas permitidas..."
+            cat <<EOF > allowed_dirs.txt
+            service-discovery
+            cloud-config
+            api-gateway
+            proxy-client
+            order-service
+            product-service
+            user-service
+            shipping-service
+            payment-service
+            favourite-service
+            nginx
+            EOF
 
-            # Filtrar solo las carpetas permitidas
-            grep -xF "${allowed_dirs[@]}" changed_dirs_raw.txt > changed_dirs.txt || true
+            grep -Fxf allowed_dirs.txt changed_dirs_raw.txt > changed_dirs.txt || true
 
             echo "📦 Servicios modificados válidos:"
             cat changed_dirs.txt || echo "(ninguno)"
