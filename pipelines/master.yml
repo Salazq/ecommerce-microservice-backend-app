@@ -256,10 +256,6 @@ stages:
                 if [[ -f "$dir/Dockerfile" && -f "k8s-$(tag)/$dir.yaml" ]]; then
                   echo "🔄 Borrando deployment $dir..."
                   kubectl delete -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace) --ignore-not-found
-                  echo "🐳 Build & Push Docker image..."
-                  docker build -t salazq/$dir:$(tag) $dir
-                  echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                  docker push salazq/$dir:$(tag)
                   echo "🚀 Aplicando nuevo deployment..."
                   kubectl apply -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace)
                 else
@@ -267,9 +263,6 @@ stages:
                 fi
               done < changed_dirs.txt
             displayName: 'Reemplazar Microservicios Modificados'
-            env:
-              DOCKER_USERNAME: $(dockerHubUsername)
-              DOCKER_PASSWORD: $(dockerHubPassword)
           - task: PowerShell@2
             displayName: 'Marcar namespace para evitar stages siguientes'
             inputs:
