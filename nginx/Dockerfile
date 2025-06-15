@@ -5,7 +5,6 @@ FROM nginx:latest
 # Eliminar la configuración por defecto
 RUN rm /etc/nginx/conf.d/default.conf
 
-
 # Copiar la configuración principal de nginx
 COPY nginx-main.conf /etc/nginx/nginx.conf
 
