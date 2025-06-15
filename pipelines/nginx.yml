@@ -3,13 +3,13 @@ trigger: none
 variables:
   - group: variable-group-taller
   - name: aksResourceGroup
-    value: 'dev-resource-group'
+    value: 'prod-resource-group'
   - name: aksClusterName
-    value: 'dev-aks-cluster'
+    value: 'prod-aks-cluster'
   - name: kubernetesNamespace
     value: 'ecommerce'
   - name: tag
-    value: stage
+    value: prod
 
 stages:
 - stage: ReplaceNginx
