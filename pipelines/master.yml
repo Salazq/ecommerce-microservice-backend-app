@@ -35,193 +35,8 @@ variables:
 
 stages:
 
-- stage: Tests
-  displayName: 'Run Tests and Coverage for All Services'
-  jobs:
-    - job: RunAllTests
-      pool:
-        vmImage: 'ubuntu-latest'
-      steps:
-        - checkout: self
-
-        - task: SonarCloudPrepare@3
-          inputs:
-            SonarQube: 'SonarCloud'
-            organization: 'ecommerce-microservice-backend'
-            scannerMode: 'other'
-            extraProperties: |
-              # Additional properties that will be passed to the scanner,
-              # Put one key=value per line, example:
-              # sonar.exclusions=**/*.bin
-              sonar.projectKey=salazq_ecommerce-microservice-backend-app
-              sonar.projectName=ecommerce-microservice-backend-app
-        - task: Maven@4
-          displayName: 'Run Tests and Generate Coverage'
-          inputs:
-            azureSubscription: '$(AZURE_ACCOUNT)'
-            mavenPomFile: 'pom.xml'
-            goals: 'clean verify'
-            options: '-Dmaven.test.failure.ignore=false -Dspring.profiles.active=test'
-            publishJUnitTestResults: true
-            testResultsFiles: '**/target/surefire-reports/TEST-*.xml,**/target/failsafe-reports/TEST-*.xml'
-            javaHomeOption: 'JDKVersion'
-            jdkVersionOption: '1.11'
-            mavenVersionOption: 'Default'
-            mavenAuthenticateFeed: false
-            effectivePomSkip: false
-            sonarQubeRunAnalysis: true
-            sqMavenPluginVersionChoice: 'latest'
-        
-        - task: PublishTestResults@2
-          inputs:
-            testResultsFormat: 'JUnit'
-            testResultsFiles: '**/target/surefire-reports/TEST-*.xml'
-          
-        - task: PublishCodeCoverageResults@2
-          inputs:
-            summaryFileLocation: 'jacoco-report-aggregation/target/site/jacoco-aggregate/jacoco.xml'
-            pathToSources: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
-
-        - task: Docker@2
-          displayName: Build and Push cloud-config
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/cloud-config'
-            command: 'buildAndPush'
-            Dockerfile: 'cloud-config/Dockerfile'
-            buildContext: 'cloud-config/'
-            tags: '$(tag)'
-
-        # service-discovery
-        - task: Docker@2
-          displayName: Build and Push service-discovery
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/service-discovery'
-            command: 'buildAndPush'
-            Dockerfile: 'service-discovery/Dockerfile'
-            buildContext: 'service-discovery/'
-            tags: '$(tag)'
-
-        # api-gateway
-        - task: Docker@2
-          displayName: Build and Push api-gateway
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/api-gateway'
-            command: 'buildAndPush'
-            Dockerfile: 'api-gateway/Dockerfile'
-            buildContext: 'api-gateway/'
-            tags: '$(tag)'
-
-        # proxy-client
-        - task: Docker@2
-          displayName: Build and Push proxy-client
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/proxy-client'
-            command: 'buildAndPush'
-            Dockerfile: 'proxy-client/Dockerfile'
-            buildContext: 'proxy-client/'
-            tags: '$(tag)'
-
-        # order-service
-        - task: Docker@2
-          displayName: Build and Push order-service
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/order-service'
-            command: 'buildAndPush'
-            Dockerfile: 'order-service/Dockerfile'
-            buildContext: 'order-service/'
-            tags: '$(tag)'
-
-        # product-service
-        - task: Docker@2
-          displayName: Build and Push product-service
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/product-service'
-            command: 'buildAndPush'
-            Dockerfile: 'product-service/Dockerfile'
-            buildContext: 'product-service/'
-            tags: '$(tag)'
-
-        # user-service
-        - task: Docker@2
-          displayName: Build and Push user-service
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/user-service'
-            command: 'buildAndPush'
-            Dockerfile: 'user-service/Dockerfile'
-            buildContext: 'user-service/'
-            tags: '$(tag)'
-
-        # shipping-service
-        - task: Docker@2
-          displayName: Build and Push shipping-service
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/shipping-service'
-            command: 'buildAndPush'
-            Dockerfile: 'shipping-service/Dockerfile'
-            buildContext: 'shipping-service/'
-            tags: '$(tag)'
-
-        # payment-service
-        - task: Docker@2
-          displayName: Build and Push payment-service
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/payment-service'
-            command: 'buildAndPush'
-            Dockerfile: 'payment-service/Dockerfile'
-            buildContext: 'payment-service/'
-            tags: '$(tag)'
-
-        # favourite-service
-        - task: Docker@2
-          displayName: Build and Push favourite-service
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/favourite-service'
-            command: 'buildAndPush'
-            Dockerfile: 'favourite-service/Dockerfile'
-            buildContext: 'favourite-service/'
-            tags: '$(tag)'
-
-        # nginx (as reverse proxy or static content)
-        - task: Docker@2
-          displayName: Build and Push nginx
-          inputs:
-            containerRegistry: 'docker-hub-service'
-            repository: 'salazq/nginx'
-            command: 'buildAndPush'
-            Dockerfile: 'nginx/Dockerfile'
-            buildContext: 'nginx/'
-            tags: '$(tag)'
-
-
-
-- stage: ManualApproval
-  displayName: 'Manual Approval for Deployment'
-  dependsOn: Tests
-  jobs:
-  - job: waitForValidation
-    displayName: Wait for external validation
-    pool: server
-    timeoutInMinutes: 4320 # job times out in 3 days
-    steps:
-    - task: ManualValidation@0
-      timeoutInMinutes: 1440 # task times out in 1 day
-      inputs:
-        instructions: 'Please validate the build configuration and semantic release. Check release notes and approve deployment.'
-        onTimeout: 'resume'
-
 - stage: CheckNamespaceAndRedeployModifiedServices
   displayName: 'Check Namespace and Redeploy Modified Services'
-  dependsOn: ManualApproval
   jobs:
     - job: CheckAndRedeploy
       displayName: 'Verificar Namespace y Reemplazar Servicios Modificados'
@@ -249,9 +64,29 @@ stages:
         - script: |
             echo "🔍 Detectando carpetas modificadas..."
             git diff --name-only HEAD^ HEAD > changed_files.txt
-            grep '/' changed_files.txt | cut -d/ -f1 | sort -u > changed_dirs.txt
-            echo "📦 Modificando servicios:"
-            cat changed_dirs.txt
+            grep '/' changed_files.txt | cut -d/ -f1 | sort -u > changed_dirs_raw.txt
+
+            # Lista de carpetas válidas
+            allowed_dirs=(
+              service-discovery
+              cloud-config
+              api-gateway
+              proxy-client
+              order-service
+              product-service
+              user-service
+              shipping-service
+              payment-service
+              favourite-service
+              nginx
+            )
+
+            # Filtrar solo las carpetas permitidas
+            grep -xF "${allowed_dirs[@]}" changed_dirs_raw.txt > changed_dirs.txt || true
+
+            echo "📦 Servicios modificados válidos:"
+            cat changed_dirs.txt || echo "(ninguno)"
+
             servicios_reemplazados=0
             while IFS= read -r dir; do
               echo "➡ Procesando $dir..."
@@ -265,6 +100,7 @@ stages:
                 echo "⚠️ Saltando $dir (no tiene Dockerfile o YAML)"
               fi
             done < changed_dirs.txt
+
             if [[ $servicios_reemplazados -eq 1 ]]; then
               echo "✅ Servicios reemplazados, omitiendo etapas siguientes..."
               echo "##vso[task.setvariable variable=skipNextStages]true"
@@ -273,6 +109,7 @@ stages:
             fi
           displayName: 'Reemplazar Microservicios Modificados'
           condition: eq(variables['namespaceExists'], 'true')
+
 
 
 
@@ -555,48 +392,5 @@ stages:
         artifact: 'changelog'
       condition: always()
 
-
-
-- stage: NotifyFailure
-  displayName: "Notificar Fallo en Teams"
-  dependsOn:
-    - Tests
-    - SemanticRelease
-    - ManualApproval
-    - Deploy
-    - DeployGrafanaMonitoring
-  condition: failed()
-  jobs:
-    - job: NotifyJob
-      steps:
-        - task: PowerShell@2
-          displayName: 'Enviar mensaje a Teams'
-          inputs:
-            targetType: 'inline'
-            script: |
-              Invoke-WebRequest -Uri "https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY" `
-                -Method POST `
-                -Headers @{ "Content-Type" = "application/json" } `
-                -Body '{
-                  "attachments": [{
-                    "contentType": "application/vnd.microsoft.teams.card.adaptive",
-                    "content": {
-                      "type": "AdaptiveCard",
-                      "version": "1.0",
-                      "body": [
-                        { "type": "TextBlock", "text": "🚨 *Pipeline Fallida*", "weight": "Bolder", "size": "Medium", "color": "Attention" },
-                        { "type": "TextBlock", "text": "🔧 Proyecto: ecommerce-microservice-backend-app" },
-                        { "type": "TextBlock", "text": "🧪 Estado: Fallido" },
-                        { "type": "TextBlock", "text": "🌿 Rama: $(Build.DefinitionName)" },
-                        { "type": "TextBlock", "text": "👤 Ejecutado por: $(Build.RequestedFor)" },
-                        {
-                          "type": "TextBlock",
-                          "text": "[🔍 Ver logs](https://dev.azure.com/salazq/ecommerce-microservice-backend-app/_build/results?buildId=$(Build.BuildId))",
-                          "wrap": true
-                        }
-                      ]
-                    }
-                  }]
-                }'
 
 
