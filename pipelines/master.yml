@@ -35,6 +35,7 @@ variables:
 
 stages:
 
+
 - stage: CheckNamespaceAndRedeployModifiedServices
   displayName: 'Check Namespace and Redeploy Modified Services'
   jobs:
@@ -55,59 +56,101 @@ stages:
             scriptLocation: inlineScript
             inlineScript: |
               az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
-              if kubectl get namespace $(kubernetesNamespace); then
-                echo "##vso[task.setvariable variable=namespaceExists]true"
+              if kubectl get namespace $(kubernetesNamespace) 2>/dev/null; then
+                echo "✅ Namespace $(kubernetesNamespace) existe"
+                echo "##vso[task.setvariable variable=namespaceExists;isOutput=true]true"
               else
-                echo "##vso[task.setvariable variable=namespaceExists]false"
+                echo "❌ Namespace $(kubernetesNamespace) no existe"
+                echo "##vso[task.setvariable variable=namespaceExists;isOutput=true]false"
               fi
 
         - script: |
             echo "🔍 Detectando carpetas modificadas..."
-            git fetch origin
-            git diff --name-only origin/master...HEAD | cut -d/ -f1 | sort -u > changed_dirs_raw.txt
+            
+            # Obtener archivos modificados
+            git diff --name-only HEAD~1 HEAD > changed_files.txt
+            echo "📄 Archivos modificados:"
+            cat changed_files.txt
+            
+            # Extraer carpetas de primer nivel
+            grep '/' changed_files.txt | cut -d/ -f1 | sort -u > changed_dirs_raw.txt || true
+            echo "📁 Carpetas detectadas:"
+            cat changed_dirs_raw.txt || echo "(ninguna)"
 
-            echo "🧩 Filtrando carpetas permitidas..."
-            cat <<EOF > allowed_dirs.txt
-            service-discovery
-            cloud-config
-            api-gateway
-            proxy-client
-            order-service
-            product-service
-            user-service
-            shipping-service
-            payment-service
-            favourite-service
-            nginx
-            EOF
+            # Lista de carpetas válidas
+            allowed_dirs=(
+              "service-discovery"
+              "cloud-config"
+              "api-gateway"
+              "proxy-client"
+              "order-service"
+              "product-service"
+              "user-service"
+              "shipping-service"
+              "payment-service"
+              "favourite-service"
+              "nginx"
+            )
 
-            grep -Fxf allowed_dirs.txt changed_dirs_raw.txt > changed_dirs.txt || true
+            # Filtrar solo las carpetas permitidas
+            > changed_dirs.txt
+            if [ -s changed_dirs_raw.txt ]; then
+              while IFS= read -r dir; do
+                for allowed in "${allowed_dirs[@]}"; do
+                  if [[ "$dir" == "$allowed" ]]; then
+                    echo "$dir" >> changed_dirs.txt
+                    break
+                  fi
+                done
+              done < changed_dirs_raw.txt
+            fi
 
             echo "📦 Servicios modificados válidos:"
-            cat changed_dirs.txt || echo "(ninguno)"
-
-            servicios_reemplazados=0
-            while IFS= read -r dir; do
-              echo "➡ Procesando $dir..."
-              if [[ -f "$dir/Dockerfile" && -f "k8s-$(tag)/$dir.yaml" ]]; then
-                echo "🔄 Borrando deployment $dir..."
-                kubectl delete -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace) --ignore-not-found
-                echo "🚀 Aplicando nuevo deployment..."
-                kubectl apply -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace)
-                servicios_reemplazados=1
-              else
-                echo "⚠️ Saltando $dir (no tiene Dockerfile o YAML)"
-              fi
-            done < changed_dirs.txt
-
-            if [[ $servicios_reemplazados -eq 1 ]]; then
-              echo "✅ Servicios reemplazados, omitiendo etapas siguientes..."
-              echo "##vso[task.setvariable variable=skipNextStages]true"
+            if [ -s changed_dirs.txt ]; then
+              cat changed_dirs.txt
             else
-              echo "ℹ️ No se reemplazó ningún servicio."
+              echo "(ninguno)"
+            fi
+
+            # Verificar si hay servicios para reemplazar
+            servicios_reemplazados=false
+            if [ -s changed_dirs.txt ]; then
+              while IFS= read -r dir; do
+                echo "➡ Procesando $dir..."
+                if [[ -f "$dir/Dockerfile" && -f "k8s-$(tag)/$dir.yaml" ]]; then
+                  echo "🔄 Borrando deployment $dir..."
+                  kubectl delete -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace) --ignore-not-found=true
+                  echo "🚀 Aplicando nuevo deployment..."
+                  kubectl apply -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace)
+                  servicios_reemplazados=true
+                  echo "✅ Servicio $dir reemplazado exitosamente"
+                else
+                  echo "⚠️ Saltando $dir (no tiene Dockerfile o archivo YAML correspondiente)"
+                fi
+              done < changed_dirs.txt
+            fi
+
+            # Establecer variables de salida
+            if [[ "$servicios_reemplazados" == "true" ]]; then
+              echo "✅ Servicios reemplazados exitosamente, omitiendo etapas siguientes..."
+              echo "##vso[task.setvariable variable=skipNextStages;isOutput=true]true"
+              echo "##vso[task.setvariable variable=servicesRedeployed;isOutput=true]true"
+            else
+              echo "ℹ️ No se reemplazó ningún servicio válido."
+              echo "##vso[task.setvariable variable=skipNextStages;isOutput=true]false"
+              echo "##vso[task.setvariable variable=servicesRedeployed;isOutput=true]false"
             fi
           displayName: 'Reemplazar Microservicios Modificados'
-          condition: eq(variables['namespaceExists'], 'true')
+          name: replaceServices
+          condition: eq(variables['checkNamespace.namespaceExists'], 'true')
+
+        - script: |
+            echo "ℹ️ Namespace no existe, se ejecutará el despliegue completo en los siguientes stages"
+            echo "##vso[task.setvariable variable=skipNextStages;isOutput=true]false"
+            echo "##vso[task.setvariable variable=servicesRedeployed;isOutput=true]false"
+          displayName: 'Configurar para Despliegue Completo'
+          name: configureFullDeploy
+          condition: eq(variables['checkNamespace.namespaceExists'], 'false')
 
 
 
@@ -115,7 +158,7 @@ stages:
 - stage: DeployGrafanaMonitoring
   displayName: 'Deploy Grafana Monitoring Stack'
   dependsOn: CheckNamespaceAndRedeployModifiedServices
-  condition: and(succeeded(), ne(variables['skipNextStages'], 'true'))
+  condition: and(succeeded(), eq(dependencies.CheckNamespaceAndRedeployModifiedServices.outputs['CheckAndRedeploy.replaceServices.skipNextStages'], 'false'), eq(dependencies.CheckNamespaceAndRedeployModifiedServices.outputs['CheckAndRedeploy.configureFullDeploy.skipNextStages'], 'false'))
   jobs:
     - job: RunGrafanaMonitoring
       displayName: 'Deploy .grafana script to AKS'
@@ -152,7 +195,7 @@ stages:
 - stage: Deploy
   displayName: 'Deploy to AKS'
   dependsOn: DeployGrafanaMonitoring
-  condition: and(succeeded(), ne(variables['skipNextStages'], 'true'))
+  condition: and(succeeded(), eq(dependencies.CheckNamespaceAndRedeployModifiedServices.outputs['CheckAndRedeploy.replaceServices.skipNextStages'], 'false'), eq(dependencies.CheckNamespaceAndRedeployModifiedServices.outputs['CheckAndRedeploy.configureFullDeploy.skipNextStages'], 'false'))
   jobs:
   - deployment: DeployToAKS
     displayName: 'Deploy Microservices to AKS'
