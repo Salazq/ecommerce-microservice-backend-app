@@ -1,1 +1,9 @@
 Method,Name,Error,Occurrences
+GET,//shipping-service/api/shippings/,"ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x....>, 'Connection to 57.152.56.110 timed out. (connect timeout=None)')",11
+GET,/product-service/api/categories,"ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x....>, 'Connection to 57.152.56.110 timed out. (connect timeout=None)')",6
+GET,/product-service/api/products,"ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x....>, 'Connection to 57.152.56.110 timed out. (connect timeout=None)')",6
+GET,/user-service/api/credentials,"ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x....>, 'Connection to 57.152.56.110 timed out. (connect timeout=None)')",4
+GET,/user-service/api/users,"ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x....>, 'Connection to 57.152.56.110 timed out. (connect timeout=None)')",9
+GET,/order-service/api/orders,"ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x....>, 'Connection to 57.152.56.110 timed out. (connect timeout=None)')",10
+GET,//payment-service/api/payments/,"ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x....>, 'Connection to 57.152.56.110 timed out. (connect timeout=None)')",11
+POST,Create User,"ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x....>, 'Connection to 57.152.56.110 timed out. (connect timeout=None)')",15

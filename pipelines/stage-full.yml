@@ -1,0 +1,888 @@
+trigger:
+  branches:
+    include:
+      - stage
+  paths:
+    include:
+      - service-discovery/**
+      - cloud-config/**
+      - api-gateway/**
+      - proxy-client/**
+      - order-service/**
+      - product-service/**
+      - user-service/**
+      - shipping-service/**
+      - payment-service/**
+      - favourite-service/**
+      - nginx/**
+
+variables:
+  - group: variable-group-taller
+  - name: tag
+    value: latest
+  - name: aksResourceGroup
+    value: 'dev-resource-group'
+  - name: aksClusterName
+    value: 'dev-aks-cluster'
+  - name: kubernetesNamespace
+    value: 'ecommerce'
+  - name: dockerHubUsername
+    value: 'salazq'
+  - name: base_url
+    value: '57.152.56.110'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  - name: nginxServiceName
+    value: 'nginx-proxy'
+
+stages:
+
+- stage: Tests
+  displayName: 'Run Tests and Coverage for All Services'
+  jobs:
+    - job: RunAllTests
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - checkout: self
+
+        - task: SonarCloudPrepare@3
+          inputs:
+            SonarQube: 'SonarCloud'
+            organization: 'ecommerce-microservice-backend'
+            scannerMode: 'other'
+            extraProperties: |
+              # Additional properties that will be passed to the scanner,
+              # Put one key=value per line, example:
+              # sonar.exclusions=**/*.bin
+              sonar.projectKey=salazq_ecommerce-microservice-backend-app
+              sonar.projectName=ecommerce-microservice-backend-app
+        - task: Maven@4
+          displayName: 'Run Tests and Generate Coverage'
+          inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'
+            mavenPomFile: 'pom.xml'
+            goals: 'clean verify'
+            options: '-Dmaven.test.failure.ignore=false -Dspring.profiles.active=test'
+            publishJUnitTestResults: true
+            testResultsFiles: '**/target/surefire-reports/TEST-*.xml,**/target/failsafe-reports/TEST-*.xml'
+            javaHomeOption: 'JDKVersion'
+            jdkVersionOption: '1.11'
+            mavenVersionOption: 'Default'
+            mavenAuthenticateFeed: false
+            effectivePomSkip: false
+            sonarQubeRunAnalysis: true
+            sqMavenPluginVersionChoice: 'latest'
+        
+        - task: PublishTestResults@2
+          inputs:
+            testResultsFormat: 'JUnit'
+            testResultsFiles: '**/target/surefire-reports/TEST-*.xml'
+          
+        - task: PublishCodeCoverageResults@2
+          inputs:
+            summaryFileLocation: 'jacoco-report-aggregation/target/site/jacoco-aggregate/jacoco.xml'
+            pathToSources: 'jacoco-report-aggregation/target/site/jacoco-aggregate'
+
+        - task: Docker@2
+          displayName: Build and Push cloud-config
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/cloud-config'
+            command: 'buildAndPush'
+            Dockerfile: 'cloud-config/Dockerfile'
+            buildContext: 'cloud-config/'
+            tags: '$(tag)'
+
+        # service-discovery
+        - task: Docker@2
+          displayName: Build and Push service-discovery
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/service-discovery'
+            command: 'buildAndPush'
+            Dockerfile: 'service-discovery/Dockerfile'
+            buildContext: 'service-discovery/'
+            tags: '$(tag)'
+
+        # api-gateway
+        - task: Docker@2
+          displayName: Build and Push api-gateway
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/api-gateway'
+            command: 'buildAndPush'
+            Dockerfile: 'api-gateway/Dockerfile'
+            buildContext: 'api-gateway/'
+            tags: '$(tag)'
+
+        # proxy-client
+        - task: Docker@2
+          displayName: Build and Push proxy-client
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/proxy-client'
+            command: 'buildAndPush'
+            Dockerfile: 'proxy-client/Dockerfile'
+            buildContext: 'proxy-client/'
+            tags: '$(tag)'
+
+        # order-service
+        - task: Docker@2
+          displayName: Build and Push order-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/order-service'
+            command: 'buildAndPush'
+            Dockerfile: 'order-service/Dockerfile'
+            buildContext: 'order-service/'
+            tags: '$(tag)'
+
+        # product-service
+        - task: Docker@2
+          displayName: Build and Push product-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/product-service'
+            command: 'buildAndPush'
+            Dockerfile: 'product-service/Dockerfile'
+            buildContext: 'product-service/'
+            tags: '$(tag)'
+
+        # user-service
+        - task: Docker@2
+          displayName: Build and Push user-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/user-service'
+            command: 'buildAndPush'
+            Dockerfile: 'user-service/Dockerfile'
+            buildContext: 'user-service/'
+            tags: '$(tag)'
+
+        # shipping-service
+        - task: Docker@2
+          displayName: Build and Push shipping-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/shipping-service'
+            command: 'buildAndPush'
+            Dockerfile: 'shipping-service/Dockerfile'
+            buildContext: 'shipping-service/'
+            tags: '$(tag)'
+
+        # payment-service
+        - task: Docker@2
+          displayName: Build and Push payment-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/payment-service'
+            command: 'buildAndPush'
+            Dockerfile: 'payment-service/Dockerfile'
+            buildContext: 'payment-service/'
+            tags: '$(tag)'
+
+        # favourite-service
+        - task: Docker@2
+          displayName: Build and Push favourite-service
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/favourite-service'
+            command: 'buildAndPush'
+            Dockerfile: 'favourite-service/Dockerfile'
+            buildContext: 'favourite-service/'
+            tags: '$(tag)'
+
+        # nginx (as reverse proxy or static content)
+        - task: Docker@2
+          displayName: Build and Push nginx
+          inputs:
+            containerRegistry: 'docker-hub-service'
+            repository: 'salazq/nginx'
+            command: 'buildAndPush'
+            Dockerfile: 'nginx/Dockerfile'
+            buildContext: 'nginx/'
+            tags: '$(tag)'
+
+- stage: SecurityScan
+  displayName: 'Security Scan with Trivy'
+  dependsOn: Tests
+  jobs:
+  - job: TrivyScans
+    displayName: 'Trivy Security Scans'
+    pool:
+      vmImage: $(vmImageName)    
+    steps:
+    # Paso 1: Checkout del código
+    - checkout: self
+      displayName: 'Checkout Repository'
+
+
+    # Paso 3: Escaneo de imágenes Docker desde Docker Hub
+    - task: trivy@2
+      name: TrivyServiceDiscovery
+      displayName: 'Scan service-discovery image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/service-discovery:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyCloudConfig
+      displayName: 'Scan cloud-config image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/cloud-config:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyApiGateway
+      displayName: 'Scan api-gateway image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/api-gateway:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyProxyClient
+      displayName: 'Scan proxy-client image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/proxy-client:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyUserService
+      displayName: 'Scan user-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/user-service:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyProductService
+      displayName: 'Scan product-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/product-service:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyOrderService
+      displayName: 'Scan order-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/order-service:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyPaymentService
+      displayName: 'Scan payment-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/payment-service:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyShippingService
+      displayName: 'Scan shipping-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/shipping-service:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyFavouriteService
+      displayName: 'Scan favourite-service image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/favourite-service:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+    - task: trivy@2
+      name: TrivyNginx
+      displayName: 'Scan nginx image'
+      inputs:
+        version: 'latest'
+        type: 'image'
+        target: '$(dockerHubUsername)/nginx:$(tag)'
+        scanners: 'vuln,misconfig'
+        ignoreUnfixed: true
+        ignoreScanErrors: true
+        reports: 'github, sarif'
+        publish: true
+
+   
+    - task: PublishTestResults@2
+      displayName: 'Publish Trivy Test Results'
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: |
+          $(TrivyServiceDiscovery.junitReport)
+          $(TrivyCloudConfig.junitReport)
+          $(TrivyApiGateway.junitReport)
+          $(TrivyProxyClient.junitReport)
+          $(TrivyUserService.junitReport)
+          $(TrivyProductService.junitReport)
+          $(TrivyOrderService.junitReport)
+          $(TrivyPaymentService.junitReport)
+          $(TrivyShippingService.junitReport)
+          $(TrivyFavouriteService.junitReport)
+          $(TrivyNginx.junitReport)
+        searchFolder: '$(Agent.TempDirectory)'
+        testRunTitle: 'Trivy Security Scan Results'
+        publishRunAttachments: false
+
+- stage: Deploy
+  displayName: 'Deploy to AKS'
+  dependsOn: SecurityScan
+  jobs:
+  - deployment: DeployToAKS
+    displayName: 'Deploy Microservices to AKS'
+    environment: 'development'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: AzureCLI@2
+            displayName: 'Get AKS credentials'
+            inputs:
+              azureSubscription: $(AZURE_ACCOUNT)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+          - task: Kubernetes@1
+            displayName: 'Create Namespace'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/namespace.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Deploy Zipkin'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/zipkin.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Deploy Cloud Config Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/cloud-config.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Service Discovery'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/service-discovery.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Deploy API Gateway'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/api-gateway.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+          - task: Kubernetes@1
+            displayName: 'Deploy User Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/user-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Product Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/product-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Order Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/order-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Payment Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/payment-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Favourite Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/favourite-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Shipping Service'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/shipping-service.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Proxy Client'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/proxy-client.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Deploy Nginx'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'apply'
+              arguments: '-f k8s-aks/nginx.yaml'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Verify Deployment Status'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'get'
+              arguments: 'pods -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              
+          - task: Kubernetes@1
+            displayName: 'Get Services Status'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscriptionEndpoint: $(AZURE_ACCOUNT)
+              azureResourceGroup: $(aksResourceGroup)
+              kubernetesCluster: $(aksClusterName)
+              command: 'get'
+              arguments: 'services -n $(kubernetesNamespace)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+
+- stage: ZAPScan
+  displayName: 'Escaneo de Seguridad con OWASP ZAP'
+  dependsOn: Deploy
+  condition: succeeded()
+  jobs:
+    - job: RunZapScan
+      displayName: 'Ejecutar OWASP ZAP contra IP pública del Nginx'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - script: |
+            echo "Esperando 5 minutos antes de iniciar la captura de IP..."
+            sleep 300
+          displayName: 'Esperar 5 minutos'
+        - task: AzureCLI@2
+          displayName: 'Login to Azure y obtener credenciales del clúster'
+          inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+        
+        - bash: |
+            echo "Instalando OWASP ZAP..."
+            sudo apt-get update
+            sudo apt-get install -y snap
+            sudo snap install zaproxy --classic
+          displayName: 'Instalar OWASP ZAP'
+
+        - bash: |
+            echo "Ejecutando escaneo ZAP..."
+            mkdir -p owaspzap
+            IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+            echo "Iniciando escaneo contra http://$IP/user-service/api/users"
+            zaproxy -cmd -quickurl "http://$IP/user-service/api/users" -quickout "$(System.DefaultWorkingDirectory)/owaspzap/report.json" -quickprogress
+          displayName: 'Ejecutar ZAP scan en modo headless'
+
+        - bash: |
+            sudo npm install -g handlebars-cmd
+            cat <<EOF > owaspzap/nunit-template.hbs
+            {{#each site}}
+            <test-run
+                id="2"
+                name="Owasp test"
+                start-time="{{../[@generated]}}"  >
+                <test-suite
+                    id="{{@index}}"
+                    type="Assembly"
+                    name="{{[@name]}}"
+                    result="Failed"
+                    failed="{{alerts.length}}">
+                    <attachments>
+                        <attachment>
+                            <filePath>owaspzap/report.html</filePath>
+                        </attachment>
+                    </attachments>
+                {{#each alerts}}<test-case
+                    id="{{@index}}"
+                    name="{{alert}}"
+                    result="Failed"
+                    fullname="{{alert}}"
+                    time="1">
+                        <failure>
+                                <message>
+                                 <![CDATA[{{{desc}}}]]>
+                            </message>
+                            <stack-trace>
+                                <![CDATA[
+            Solution:
+            {{{solution}}}
+            Reference:
+            {{{reference}}}
+            instances:{{#each instances}}
+            * {{uri}}
+                - {{method}}
+                {{#if evidence}}- {{{evidence}}}{{/if}}
+                                 {{/each}}]]>
+                             </stack-trace>
+                        </failure>
+                </test-case>
+                {{/each}}
+                </test-suite>
+            </test-run>
+            {{/each}}
+            EOF
+          displayName: 'Crear plantilla NUnit para reporte OWASP ZAP'
+
+        - bash: 'handlebars owaspzap/report.json < owaspzap/nunit-template.hbs > owaspzap/test-results.xml'
+          displayName: 'Generar archivo de resultados NUnit'
+
+        - task: PublishTestResults@2
+          displayName: 'Publicar resultados del escaneo'
+          inputs:
+            testResultsFormat: 'NUnit'
+            testResultsFiles: 'owaspzap/test-results.xml'
+
+
+
+
+- stage: TestAPI
+  displayName: 'API Testing with Newman'
+  dependsOn: ZAPScan
+  condition: succeeded()
+  jobs:
+  - job: RunPostmanTests
+    displayName: 'Run Postman Collections'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - checkout: self
+    - task: AzureCLI@2
+      displayName: 'Login to Azure y obtener IP pública del nginx'
+      inputs:
+        azureSubscription: '$(AZURE_ACCOUNT)'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+          IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+          echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
+    - task: Npm@1
+      inputs:
+        command: 'custom'
+        customCommand: 'install newman newman-reporter-htmlextra -g'
+      displayName: 'Install Newman and htmlextra reporter'
+    
+    # Crear directorio para reportes
+    - script: |
+        mkdir -p $(Agent.TempDirectory)/newman-reports
+        echo "Base URL: $(nginxPublicIP)"
+      displayName: 'Setup Reports Directory'
+    
+    # Ejecutar cada colección individualmente
+    - script: |
+        success=true
+        for collection in postman-collections/*.postman_collection.json; do
+          if [ -f "$collection" ]; then
+            collection_name=$(basename "$collection" .postman_collection.json)
+            echo "========================================="
+            echo "Running collection: $collection_name"
+            echo "========================================="
+            
+            newman run "$collection" \
+              --env-var baseUrl=$(nginxPublicIP) \
+              --reporters htmlextra,junit,cli \
+              --reporter-htmlextra-export $(Agent.TempDirectory)/newman-reports/${collection_name}-report.html \
+              --reporter-htmlextra-darkTheme \
+              --reporter-htmlextra-logs \
+              --reporter-htmlextra-testPaging \
+              --reporter-junit-export $(Agent.TempDirectory)/newman-reports/${collection_name}-results.xml \
+              --color on
+            
+            if [ $? -ne 0 ]; then
+              echo "❌ Collection $collection_name failed"
+              success=false
+            else
+              echo "✅ Collection $collection_name passed"
+            fi
+            echo ""
+          fi
+        done
+        
+        # Crear reporte consolidado
+        echo "========================================="
+        echo "Test Summary:"
+        echo "========================================="
+        ls -la $(Agent.TempDirectory)/newman-reports/
+        
+        if [ "$success" = false ]; then
+          echo "Some tests failed, but continuing to publish results..."
+          exit 1
+        fi
+      displayName: 'Run Newman Tests'
+      continueOnError: true
+    
+    # Publicar todos los resultados XML
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(Agent.TempDirectory)/newman-reports/*-results.xml'
+        testRunTitle: 'Newman API Tests'
+        mergeTestResults: true
+      displayName: 'Publish Test Results'
+      condition: always()
+    
+    # Publicar todos los reportes HTML
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Agent.TempDirectory)/newman-reports'
+        artifactName: 'newman-reports'
+        publishLocation: 'Container'
+      displayName: 'Publish HTML Reports'
+      condition: always()
+      
+- stage: LoadTests
+  displayName: 'Run Load Tests with Locust'
+  dependsOn: TestAPI
+  condition: succeeded()
+  jobs:
+    - job: Load
+      displayName: 'Load Testing with Locust'
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - checkout: self
+
+        - task: AzureCLI@2
+          displayName: 'Login to Azure y obtener IP pública del nginx'
+          inputs:
+            azureSubscription: '$(AZURE_ACCOUNT)'
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+              IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+              echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
+
+        # Instalar Python
+        - task: UsePythonVersion@0
+          displayName: 'Install Python'
+          inputs:
+            versionSpec: '3.9'
+            addToPath: true
+
+        # Instalar dependencias de Locust
+        - task: PowerShell@2
+          displayName: 'Install Locust Dependencies'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "📦 Installing Locust and dependencies..."
+              python -m pip install --upgrade pip
+              
+              # Verificar si existe requirements.txt en load-testing
+              if (Test-Path "load-testing/requirements.txt") {
+                  Write-Host "Found requirements.txt in load-testing directory"
+                  pip install -r load-testing/requirements.txt
+              } elseif (Test-Path "requirements.txt") {
+                  Write-Host "Found requirements.txt in root directory"
+                  pip install -r requirements.txt
+              } else {
+                  Write-Host "No requirements.txt found, installing Locust directly"
+                  pip install locust
+              }
+              
+              Write-Host "✅ Locust dependencies installed successfully"
+              python -m locust --version
+
+        # Ejecutar pruebas de carga
+        - task: PowerShell@2
+          displayName: 'Run Locust Load Tests'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
+              .\run-locust.ps1 -TargetIP "$(nginxPublicIP)"
+
+        # Publicar resultados de carga
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish Load Test Results'
+          inputs:
+            pathToPublish: 'load-testing/resultados-carga'
+            artifactName: 'locust-load-results'
+          condition: always()
+
+        # Publicar resultados de estrés
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish Stress Test Results'
+          inputs:
+            pathToPublish: 'load-testing/resultados-estres'
+            artifactName: 'locust-stress-results'
+          condition: always()
+
+- stage: NotifyFailure
+  displayName: "Notificar Fallo en Teams"
+  dependsOn:
+    - Tests
+    - Deploy
+    - TestAPI
+    - ZAPScan
+    - LoadTests
+  condition: failed()
+  jobs:
+    - job: NotifyJob
+      steps:
+        - task: PowerShell@2
+          displayName: 'Enviar mensaje a Teams'
+          inputs:
+            targetType: 'inline'
+            script: |
+              Invoke-WebRequest -Uri "https://prod-56.westus.logic.azure.com:443/workflows/e6a26998771d4739b79204f1ddd54491/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AMTXYf0tRkscjsz60bI226Tob4riU3XEfXa1ZLNjeiY" `
+                -Method POST `
+                -Headers @{ "Content-Type" = "application/json" } `
+                -Body '{
+                  "attachments": [{
+                    "contentType": "application/vnd.microsoft.teams.card.adaptive",
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "version": "1.0",
+                      "body": [
+                        { "type": "TextBlock", "text": "🚨 *Pipeline Fallida*", "weight": "Bolder", "size": "Medium", "color": "Attention" },
+                        { "type": "TextBlock", "text": "🔧 Proyecto: ecommerce-microservice-backend-app" },
+                        { "type": "TextBlock", "text": "🧪 Estado: Fallido" },
+                        { "type": "TextBlock", "text": "🌿 Rama: $(Build.DefinitionName)" },
+                        { "type": "TextBlock", "text": "👤 Ejecutado por: $(Build.RequestedFor)" },
+                        {
+                          "type": "TextBlock",
+                          "text": "[🔍 Ver logs](https://dev.azure.com/salazq/ecommerce-microservice-backend-app/_build/results?buildId=$(Build.BuildId))",
+                          "wrap": true
+                        }
+                      ]
+                    }
+                  }]
+                }'
+

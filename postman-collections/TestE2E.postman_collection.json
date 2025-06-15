@@ -54,9 +54,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/user-service/api/users",
+							"raw": "{{baseUrl}}/user-service/api/users",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"user-service",
@@ -96,9 +96,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/user-service/api/credentials",
+							"raw": "{{baseUrl}}/user-service/api/credentials",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"user-service",
@@ -129,9 +129,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/user-service/api/users/{{userId}}",
+							"raw": "{{baseUrl}}/user-service/api/users/{{userId}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"user-service",
@@ -180,9 +180,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/product-service/api/categories",
+							"raw": "{{baseUrl}}/product-service/api/categories",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -225,9 +225,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/product-service/api/products",
+							"raw": "{{baseUrl}}/product-service/api/products",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -258,9 +258,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/product-service/api/categories/{{category_id}}",
+							"raw": "{{baseUrl}}/product-service/api/categories/{{category_id}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -292,9 +292,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/product-service/api/products/{{product_id}}",
+							"raw": "{{baseUrl}}/product-service/api/products/{{product_id}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -356,9 +356,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/user-service/api/users/",
+							"raw": "{{baseUrl}}/user-service/api/users/",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"user-service",
@@ -399,9 +399,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/user-service/api/credentials",
+							"raw": "{{baseUrl}}/user-service/api/credentials",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"user-service",
@@ -432,9 +432,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/user-service/api/users/{{userId}}",
+							"raw": "{{baseUrl}}/user-service/api/users/{{userId}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"user-service",
@@ -478,9 +478,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/product-service/api/categories",
+							"raw": "{{baseUrl}}/product-service/api/categories",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -523,9 +523,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/product-service/api/products",
+							"raw": "{{baseUrl}}/product-service/api/products",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -556,9 +556,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/product-service/api/categories/{{category_id}}",
+							"raw": "{{baseUrl}}/product-service/api/categories/{{category_id}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -590,9 +590,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/product-service/api/products/{{product_id}}",
+							"raw": "{{baseUrl}}/product-service/api/products/{{product_id}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -636,9 +636,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/order-service/api/carts",
+							"raw": "{{baseUrl}}/order-service/api/carts",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"order-service",
@@ -669,9 +669,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/order-service/api/carts/{{cart_id}}",
+							"raw": "{{baseUrl}}/order-service/api/carts/{{cart_id}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"order-service",
@@ -715,9 +715,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/order-service/api/orders",
+							"raw": "{{baseUrl}}/order-service/api/orders",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"order-service",
@@ -748,9 +748,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/order-service/api/orders/{{order_id}}",
+							"raw": "{{baseUrl}}/order-service/api/orders/{{order_id}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"order-service",
@@ -794,9 +794,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/payment-service/api/payments",
+							"raw": "{{baseUrl}}/payment-service/api/payments",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"payment-service",
@@ -827,9 +827,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/payment-service/api/payments/{{payment_id}}",
+							"raw": "{{baseUrl}}/payment-service/api/payments/{{payment_id}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"payment-service",
@@ -891,9 +891,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/user-service/api/users",
+							"raw": "{{baseUrl}}/user-service/api/users",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"user-service",
@@ -933,9 +933,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/user-service/api/credentials",
+							"raw": "{{baseUrl}}/user-service/api/credentials",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"user-service",
@@ -978,9 +978,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/product-service/api/categories",
+							"raw": "{{baseUrl}}/product-service/api/categories",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -1023,9 +1023,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/product-service/api/products",
+							"raw": "{{baseUrl}}/product-service/api/products",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -1056,9 +1056,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/product-service/api/products/{{product_id}}",
+							"raw": "{{baseUrl}}/product-service/api/products/{{product_id}}",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"product-service",
@@ -1099,9 +1099,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/favourite-service/api/favourites",
+							"raw": "{{baseUrl}}/favourite-service/api/favourites",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"favourite-service",
@@ -1144,9 +1144,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/favourite-service/api/favourites/find",
+							"raw": "{{baseUrl}}/favourite-service/api/favourites/find",
 							"host": [
-								"{{base_url}}"
+								"{{baseUrl}}"
 							],
 							"path": [
 								"favourite-service",
@@ -1156,81 +1156,7 @@
 							]
 						}
 					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "User delete",
-			"item": [
-				{
-					"name": "Delete user",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200 (OK)\", function () {\r",
-									"    pm.expect(pm.response.code).equals(200);\r",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/user-service/api/users/{{userId}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"user-service",
-								"api",
-								"users",
-								"{{userId}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Check delete",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 500 Internal Server Error\", function () {\r",
-									"    pm.expect(pm.response.code).equals(500);\r",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/user-service/api/users/{{userId}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"user-service",
-								"api",
-								"users",
-								"{{userId}}"
-							]
-						}
-					},
-					"response": []
-				}
+					"response": []				}
 			]
 		}
 	],
@@ -1258,7 +1184,7 @@
 	],
 	"variable": [
 		{
-			"key": "base_url",
+			"key": "baseUrl",
 			"value": "api-gateway:8080",
 			"type": "string"
 		},
