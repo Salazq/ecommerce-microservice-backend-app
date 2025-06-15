@@ -117,7 +117,7 @@ public class FavouriteServiceImpl implements FavouriteService {
 
 	// Fallback for findAll if needed, though individual enrichment fallbacks are more granular
 	public List<FavouriteDto> fallbackFindAllFavourites(Throwable t) {
-		log.error("Error calling external services from findAll favourites: {}", t.getMessage());
+		log.error("Error calling external services from findAll favourites: {}, Application circuit breaker fallback", t.getMessage());
 		// Return an empty list or cached data, with default user/product details
 		return this.favouriteRepository.findAll()
 				.stream()
@@ -133,7 +133,7 @@ public class FavouriteServiceImpl implements FavouriteService {
 
 	// Fallback for findById if needed
 	public FavouriteDto fallbackFindFavouriteById(FavouriteId favouriteId, Throwable t) {
-		log.error("Error calling external services for favouriteId {}: {}", favouriteId, t.getMessage());
+		log.error("Error calling external services for favouriteId {}: {}, Application circuit breaker fallback", favouriteId, t.getMessage());
 		return this.favouriteRepository.findById(favouriteId)
 				.map(FavouriteMappingHelper::map)
 				.map(f -> {

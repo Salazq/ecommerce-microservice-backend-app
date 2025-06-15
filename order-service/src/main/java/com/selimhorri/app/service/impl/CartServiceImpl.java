@@ -90,7 +90,7 @@ public class CartServiceImpl implements CartService {
 
 	// Fallback methods
 	public List<CartDto> fallbackFindAllUsers(Throwable t) {
-		log.error("Error calling userService from findAll: {}", t.getMessage());
+		log.error("Error calling userService from findAll: {}, Application circuit breaker fallback", t.getMessage());
 		// Return cached or default list of carts without user details
 		return this.cartRepository.findAll()
 				.stream()
@@ -100,7 +100,7 @@ public class CartServiceImpl implements CartService {
 	}
 
 	public CartDto fallbackFindUserById(Integer cartId, Throwable t) {
-		log.error("Error calling userService for cartId {}: {}", cartId, t.getMessage());
+		log.error("Error calling userService for cartId {}: {}, Application circuit breaker fallback", cartId, t.getMessage());
 		// Return cart details without user details from cache or default
 		return this.cartRepository.findById(cartId)
 				.map(CartMappingHelper::map)
