@@ -36,7 +36,7 @@ spec:
         - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
           value: "http://service-discovery:8761/eureka"
         - name: SPRING_ZIPKIN_BASE_URL
-          value: "http://zipkin:9411/"
+          value: "http://grafana-k8s-monitoring-alloy-receiver.ecommerce.svc.cluster.local:9411/"
         - name: SPRING_CONFIG_IMPORT
           value: "optional:configserver:http://cloud-config:9296"
         - name: EUREKA_INSTANCE
