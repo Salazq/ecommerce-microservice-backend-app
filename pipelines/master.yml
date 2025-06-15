@@ -230,6 +230,7 @@ stages:
       steps:
         - checkout: self
           fetchDepth: 0
+
         - task: AzureCLI@2
           name: checkNamespace
           displayName: 'Check if Namespace Exists'
@@ -244,31 +245,34 @@ stages:
               else
                 echo "##vso[task.setvariable variable=namespaceExists]false"
               fi
-        - ${{ if eq(variables['namespaceExists'], 'true') }}:
-          - script: |
-              echo "🔍 Detectando carpetas modificadas..."
-              git diff --name-only HEAD^ HEAD > changed_files.txt
-              grep '/' changed_files.txt | cut -d/ -f1 | sort -u > changed_dirs.txt
-              echo "📦 Modificando servicios:"
-              cat changed_dirs.txt
-              while IFS= read -r dir; do
-                echo "➡ Procesando $dir..."
-                if [[ -f "$dir/Dockerfile" && -f "k8s-$(tag)/$dir.yaml" ]]; then
-                  echo "🔄 Borrando deployment $dir..."
-                  kubectl delete -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace) --ignore-not-found
-                  echo "🚀 Aplicando nuevo deployment..."
-                  kubectl apply -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace)
-                else
-                  echo "⚠️ Saltando $dir (no tiene Dockerfile o YAML)"
-                fi
-              done < changed_dirs.txt
-            displayName: 'Reemplazar Microservicios Modificados'
-          - task: PowerShell@2
-            displayName: 'Marcar namespace para evitar stages siguientes'
-            inputs:
-              targetType: 'inline'
-              script: |
-                Write-Host "##vso[task.setvariable variable=skipNextStages]true"
+
+        - script: |
+            echo "🔍 Detectando carpetas modificadas..."
+            git diff --name-only HEAD^ HEAD > changed_files.txt
+            grep '/' changed_files.txt | cut -d/ -f1 | sort -u > changed_dirs.txt
+            echo "📦 Modificando servicios:"
+            cat changed_dirs.txt
+            servicios_reemplazados=0
+            while IFS= read -r dir; do
+              echo "➡ Procesando $dir..."
+              if [[ -f "$dir/Dockerfile" && -f "k8s-$(tag)/$dir.yaml" ]]; then
+                echo "🔄 Borrando deployment $dir..."
+                kubectl delete -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace) --ignore-not-found
+                echo "🚀 Aplicando nuevo deployment..."
+                kubectl apply -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace)
+                servicios_reemplazados=1
+              else
+                echo "⚠️ Saltando $dir (no tiene Dockerfile o YAML)"
+              fi
+            done < changed_dirs.txt
+            if [[ $servicios_reemplazados -eq 1 ]]; then
+              echo "✅ Servicios reemplazados, omitiendo etapas siguientes..."
+              echo "##vso[task.setvariable variable=skipNextStages]true"
+            else
+              echo "ℹ️ No se reemplazó ningún servicio."
+            fi
+          displayName: 'Reemplazar Microservicios Modificados'
+          condition: eq(variables['namespaceExists'], 'true')
 
 
 
