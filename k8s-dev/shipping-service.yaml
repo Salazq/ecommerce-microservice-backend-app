@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping-service
+  namespace: ecommerce
+  labels:
+    app: shipping-service
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipping-service
+  template:
+    metadata:
+      labels:
+        app: shipping-service
+        version: v1
+    spec:
+      initContainers:
+      - name: wait-for-cloud-config
+        image: curlimages/curl:7.85.0
+        command: ['sh', '-c', 'until curl -f http://cloud-config:9296/actuator/health; do echo waiting for cloud-config; sleep 5; done']
+      - name: wait-for-service-discovery
+        image: curlimages/curl:7.85.0
+        command: ['sh', '-c', 'until curl -f http://service-discovery:8761/actuator/health; do echo waiting for service-discovery; sleep 5; done']      
+      containers:
+      - name: shipping-service
+        image: salazq/shipping-service:dev
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8600
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev"
+        - name: SPRING_ZIPKIN_BASE_URL
+          value: "http://zipkin:9411/"
+        - name: SPRING_CONFIG_IMPORT
+          value: "optional:configserver:http://cloud-config:9296"
+        - name: EUREKA_INSTANCE
+          value: "shipping-service"
+        readinessProbe:
+          httpGet:
+            path: /shipping-service/actuator/health
+            port: 8600
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping-service
+  namespace: ecommerce
+  labels:
+    app: shipping-service
+spec:
+  type: ClusterIP
+  selector:
+    app: shipping-service  
+  ports:
+    - protocol: TCP
+      port: 8600
+      targetPort: 8600

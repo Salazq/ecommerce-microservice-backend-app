@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy-client
+  namespace: ecommerce
+  labels:
+    app: proxy-client
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy-client
+  template:
+    metadata:
+      labels:
+        app: proxy-client
+        version: v1
+    spec:      
+      containers:
+      - name: proxy-client
+        image: salazq/proxy-client:dev
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8900
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev"
+        - name: SPRING_ZIPKIN_BASE_URL
+          value: "http://zipkin:9411/"
+        - name: SPRING_CONFIG_IMPORT
+          value: "optional:configserver:http://cloud-config:9296"
+        - name: EUREKA_INSTANCE
+          value: "proxy-client"
+        readinessProbe:
+          httpGet:
+            path: /app/actuator/health
+            port: 8900
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy-client
+  namespace: ecommerce
+  labels:
+    app: proxy-client
+spec:
+  type: ClusterIP
+  selector:
+    app: proxy-client  
+  ports:
+    - protocol: TCP
+      port: 8900
+      targetPort: 8900
