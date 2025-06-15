@@ -1,6 +1,7 @@
 # Usar la imagen base oficial de nginx
 FROM nginx:latest
 
+
 # Eliminar la configuración por defecto
 RUN rm /etc/nginx/conf.d/default.conf
 
