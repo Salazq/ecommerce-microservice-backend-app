@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: order-service # This should match the service name used by the config server if you have service-specific configs
+  cloud:
+    config:
+      uri: http://cloud-config:9296 # Address of your Spring Cloud Config server
+      fail-fast: true # Client will fail to start if it cannot connect to the config server
+      profile: dev # Explicitly request the 'dev' profile
+      # If you want to allow services to override the profile, you can remove the line above
+      # and set SPRING_PROFILES_ACTIVE in the environment of each service.
+      # retry:
+      #   initial-interval: 1000
+      #   max-attempts: 20
+      #   max-interval: 2000
+      #   multiplier: 1.1
+
+# It's also good practice to define the Eureka client config here if not already defined
+# or if you want it to be fetched early.
+# eureka:
+#   client:
+#     serviceUrl:
+#       defaultZone: http://service-discovery:8761/eureka/
+#   instance:
+#     prefer-ip-address: true
