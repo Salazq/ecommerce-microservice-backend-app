@@ -202,6 +202,8 @@ stages:
             buildContext: 'nginx/'
             tags: '$(tag)'
 
+
+
 - stage: ManualApproval
   displayName: 'Manual Approval for Deployment'
   dependsOn: Tests
@@ -217,10 +219,70 @@ stages:
         instructions: 'Please validate the build configuration and semantic release. Check release notes and approve deployment.'
         onTimeout: 'resume'
 
+- stage: CheckNamespaceAndRedeployModifiedServices
+  displayName: 'Check Namespace and Redeploy Modified Services'
+  dependsOn: ManualApproval
+  jobs:
+    - job: CheckAndRedeploy
+      displayName: 'Verificar Namespace y Reemplazar Servicios Modificados'
+      pool:
+        vmImage: $(vmImageName)
+      steps:
+        - checkout: self
+          fetchDepth: 0
+        - task: AzureCLI@2
+          name: checkNamespace
+          displayName: 'Check if Namespace Exists'
+          inputs:
+            azureSubscription: $(AZURE_ACCOUNT)
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
+              if kubectl get namespace $(kubernetesNamespace); then
+                echo "##vso[task.setvariable variable=namespaceExists]true"
+              else
+                echo "##vso[task.setvariable variable=namespaceExists]false"
+              fi
+        - ${{ if eq(variables['namespaceExists'], 'true') }}:
+          - script: |
+              echo "🔍 Detectando carpetas modificadas..."
+              git diff --name-only HEAD^ HEAD > changed_files.txt
+              grep '/' changed_files.txt | cut -d/ -f1 | sort -u > changed_dirs.txt
+              echo "📦 Modificando servicios:"
+              cat changed_dirs.txt
+              while IFS= read -r dir; do
+                echo "➡ Procesando $dir..."
+                if [[ -f "$dir/Dockerfile" && -f "k8s-$(tag)/$dir.yaml" ]]; then
+                  echo "🔄 Borrando deployment $dir..."
+                  kubectl delete -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace) --ignore-not-found
+                  echo "🐳 Build & Push Docker image..."
+                  docker build -t salazq/$dir:$(tag) $dir
+                  echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                  docker push salazq/$dir:$(tag)
+                  echo "🚀 Aplicando nuevo deployment..."
+                  kubectl apply -f k8s-$(tag)/$dir.yaml -n $(kubernetesNamespace)
+                else
+                  echo "⚠️ Saltando $dir (no tiene Dockerfile o YAML)"
+                fi
+              done < changed_dirs.txt
+            displayName: 'Reemplazar Microservicios Modificados'
+            env:
+              DOCKER_USERNAME: $(dockerHubUsername)
+              DOCKER_PASSWORD: $(dockerHubPassword)
+          - task: PowerShell@2
+            displayName: 'Marcar namespace para evitar stages siguientes'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "##vso[task.setvariable variable=skipNextStages]true"
+
+
+
 - stage: DeployGrafanaMonitoring
   displayName: 'Deploy Grafana Monitoring Stack'
-  dependsOn: ManualApproval
-  condition: succeeded()
+  dependsOn: CheckNamespaceAndRedeployModifiedServices
+  condition: and(succeeded(), ne(variables['skipNextStages'], 'true'))
   jobs:
     - job: RunGrafanaMonitoring
       displayName: 'Deploy .grafana script to AKS'
@@ -257,6 +319,7 @@ stages:
 - stage: Deploy
   displayName: 'Deploy to AKS'
   dependsOn: DeployGrafanaMonitoring
+  condition: and(succeeded(), ne(variables['skipNextStages'], 'true'))
   jobs:
   - deployment: DeployToAKS
     displayName: 'Deploy Microservices to AKS'
