@@ -2,6 +2,20 @@
 
 ## Important Note: This project's new milestone is to move The whole system to work on Kubernetes, so stay tuned.
 
+## 🔄 Semantic Versioning & Release Notes
+This project now uses **semantic versioning** and automated release notes generation. See [SEMANTIC_RELEASE_GUIDE.md](SEMANTIC_RELEASE_GUIDE.md) for detailed instructions.
+
+### Quick Start for Releases
+```powershell
+# See what would be released (dry run)
+.\release.ps1 -DryRun
+
+# Perform actual release
+.\release.ps1 -Release
+```
+
+**Remember to use [Conventional Commits](https://www.conventionalcommits.org/) for automatic versioning!**
+
 <!--## Better Code Hub
 I analysed this repository according to the clean code standards on [Better Code Hub](https://bettercodehub.com/) just to get an independent opinion of how bad the code is. Surprisingly, the compliance score is high!
 -->

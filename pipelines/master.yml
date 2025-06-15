@@ -1,8 +1,7 @@
 trigger:
   branches:
     include:
-      - stage
-      - stage
+      - master
   paths:
     include:
       - service-discovery/**
@@ -35,8 +34,6 @@ variables:
     value: 'ubuntu-latest'
   - name: nginxServiceName
     value: 'nginx-proxy'
-  - name: base_url
-    value: '57.152.56.110'
 
 stages:
 
@@ -207,188 +204,26 @@ stages:
             buildContext: 'nginx/'
             tags: '$(tag)'
 
-- stage: SecurityScan
-  displayName: 'Security Scan with Trivy'
+- stage: ManualApproval
+  displayName: 'Manual Approval for Deployment'
   dependsOn: Tests
   jobs:
-  - job: TrivyScans
-    displayName: 'Trivy Security Scans'
-    pool:
-      vmImage: $(vmImageName)    
+  - job: waitForValidation
+    displayName: Wait for external validation
+    pool: server
+    timeoutInMinutes: 4320 # job times out in 3 days
     steps:
-    # Paso 1: Checkout del código
-    - checkout: self
-      displayName: 'Checkout Repository'
-
-
-    # Paso 3: Escaneo de imágenes Docker desde Docker Hub
-    - task: trivy@2
-      name: TrivyServiceDiscovery
-      displayName: 'Scan service-discovery image'
+    - task: ManualValidation@0
+      timeoutInMinutes: 1440 # task times out in 1 day
       inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/service-discovery:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
+        instructions: 'Please validate the build configuration and semantic release. Check release notes and approve deployment.'
+        onTimeout: 'resume'
 
-    - task: trivy@2
-      name: TrivyCloudConfig
-      displayName: 'Scan cloud-config image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/cloud-config:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
 
-    - task: trivy@2
-      name: TrivyApiGateway
-      displayName: 'Scan api-gateway image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/api-gateway:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-    - task: trivy@2
-      name: TrivyProxyClient
-      displayName: 'Scan proxy-client image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/proxy-client:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-    - task: trivy@2
-      name: TrivyUserService
-      displayName: 'Scan user-service image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/user-service:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-    - task: trivy@2
-      name: TrivyProductService
-      displayName: 'Scan product-service image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/product-service:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-    - task: trivy@2
-      name: TrivyOrderService
-      displayName: 'Scan order-service image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/order-service:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-    - task: trivy@2
-      name: TrivyPaymentService
-      displayName: 'Scan payment-service image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/payment-service:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-    - task: trivy@2
-      name: TrivyShippingService
-      displayName: 'Scan shipping-service image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/shipping-service:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-    - task: trivy@2
-      name: TrivyFavouriteService
-      displayName: 'Scan favourite-service image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/favourite-service:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-    - task: trivy@2
-      name: TrivyNginx
-      displayName: 'Scan nginx image'
-      inputs:
-        version: 'latest'
-        type: 'image'
-        target: '$(dockerHubUsername)/nginx:$(tag)'
-        scanners: 'vuln,misconfig'
-        ignoreUnfixed: true
-        ignoreScanErrors: true
-        reports: 'github, sarif'
-        publish: true
-
-   
-    - task: PublishTestResults@2
-      displayName: 'Publish Trivy Test Results'
-      inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: |
-          $(TrivyServiceDiscovery.junitReport)
-          $(TrivyCloudConfig.junitReport)
-          $(TrivyApiGateway.junitReport)
-          $(TrivyProxyClient.junitReport)
-          $(TrivyUserService.junitReport)
-          $(TrivyProductService.junitReport)
-          $(TrivyOrderService.junitReport)
-          $(TrivyPaymentService.junitReport)
-          $(TrivyShippingService.junitReport)
-          $(TrivyFavouriteService.junitReport)
-          $(TrivyNginx.junitReport)
-        searchFolder: '$(Agent.TempDirectory)'
-        testRunTitle: 'Trivy Security Scan Results'
-        publishRunAttachments: false
 
 - stage: Deploy
   displayName: 'Deploy to AKS'
-  dependsOn: SecurityScan
+  dependsOn: ManualApproval
   jobs:
   - deployment: DeployToAKS
     displayName: 'Deploy Microservices to AKS'
@@ -571,290 +406,72 @@ stages:
               arguments: 'services -n $(kubernetesNamespace)'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
 
-
-- stage: ZAPScan
-  displayName: 'Escaneo de Seguridad con OWASP ZAP'
+- stage: SemanticRelease
+  displayName: 'Semantic Release & Versioning'
   dependsOn: Deploy
-  condition: succeeded()
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   jobs:
-    - job: RunZapScan
-      displayName: 'Ejecutar OWASP ZAP contra IP pública del Nginx'
-      pool:
-        vmImage: 'ubuntu-latest'
-      steps:
-        - script: |
-            echo "Esperando 5 minutos antes de iniciar la captura de IP..."
-            sleep 300
-          displayName: 'Esperar 5 minutos'
-        - task: AzureCLI@2
-          displayName: 'Login to Azure y obtener credenciales del clúster'
-          inputs:
-            azureSubscription: '$(AZURE_ACCOUNT)'
-            scriptType: bash
-            scriptLocation: inlineScript
-            inlineScript: |
-              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
-        
-        - bash: |
-            echo "Instalando OWASP ZAP..."
-            sudo apt-get update
-            sudo apt-get install -y snap
-            sudo snap install zaproxy --classic
-          displayName: 'Instalar OWASP ZAP'
-
-        - bash: |
-            echo "Ejecutando escaneo ZAP..."
-            mkdir -p owaspzap
-            IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-            echo "Iniciando escaneo contra http://$IP/user-service/api/users"
-            zaproxy -cmd -quickurl "http://$IP/user-service/api/users" -quickout "$(System.DefaultWorkingDirectory)/owaspzap/report.json" -quickprogress
-          displayName: 'Ejecutar ZAP scan en modo headless'
-
-        - bash: |
-            sudo npm install -g handlebars-cmd
-            cat <<EOF > owaspzap/nunit-template.hbs
-            {{#each site}}
-            <test-run
-                id="2"
-                name="Owasp test"
-                start-time="{{../[@generated]}}"  >
-                <test-suite
-                    id="{{@index}}"
-                    type="Assembly"
-                    name="{{[@name]}}"
-                    result="Failed"
-                    failed="{{alerts.length}}">
-                    <attachments>
-                        <attachment>
-                            <filePath>owaspzap/report.html</filePath>
-                        </attachment>
-                    </attachments>
-                {{#each alerts}}<test-case
-                    id="{{@index}}"
-                    name="{{alert}}"
-                    result="Failed"
-                    fullname="{{alert}}"
-                    time="1">
-                        <failure>
-                                <message>
-                                 <![CDATA[{{{desc}}}]]>
-                            </message>
-                            <stack-trace>
-                                <![CDATA[
-            Solution:
-            {{{solution}}}
-            Reference:
-            {{{reference}}}
-            instances:{{#each instances}}
-            * {{uri}}
-                - {{method}}
-                {{#if evidence}}- {{{evidence}}}{{/if}}
-                                 {{/each}}]]>
-                             </stack-trace>
-                        </failure>
-                </test-case>
-                {{/each}}
-                </test-suite>
-            </test-run>
-            {{/each}}
-            EOF
-          displayName: 'Crear plantilla NUnit para reporte OWASP ZAP'
-
-        - bash: 'handlebars owaspzap/report.json < owaspzap/nunit-template.hbs > owaspzap/test-results.xml'
-          displayName: 'Generar archivo de resultados NUnit'
-
-        - task: PublishTestResults@2
-          displayName: 'Publicar resultados del escaneo'
-          inputs:
-            testResultsFormat: 'NUnit'
-            testResultsFiles: 'owaspzap/test-results.xml'
-
-
-
-
-- stage: TestAPI
-  displayName: 'API Testing with Newman'
-  dependsOn: ZAPScan
-  condition: succeeded()
-  jobs:
-  - job: RunPostmanTests
-    displayName: 'Run Postman Collections'
+  - job: Release
+    displayName: 'Generate Semantic Release'
     pool:
       vmImage: 'ubuntu-latest'
-    
     steps:
     - checkout: self
-    - task: AzureCLI@2
-      displayName: 'Login to Azure y obtener IP pública del nginx'
-      inputs:
-        azureSubscription: '$(AZURE_ACCOUNT)'
-        scriptType: bash
-        scriptLocation: inlineScript
-        inlineScript: |
-          az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
-          IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-          echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
-    - task: Npm@1
-      inputs:
-        command: 'custom'
-        customCommand: 'install newman newman-reporter-htmlextra -g'
-      displayName: 'Install Newman and htmlextra reporter'
+      persistCredentials: true
+      fetchDepth: 0
     
-    # Crear directorio para reportes
+    - task: NodeTool@0
+      displayName: 'Install Node.js 18.x'
+      inputs:
+        versionSpec: '18.x'
+    
     - script: |
-        mkdir -p $(Agent.TempDirectory)/newman-reports
-        echo "Base URL: $(nginxPublicIP)"
-      displayName: 'Setup Reports Directory'
+        echo "📦 Installing semantic-release dependencies..."
+        npm ci
+      displayName: 'Install Dependencies'
     
-    # Ejecutar cada colección individualmente
     - script: |
-        success=true
-        for collection in postman-collections/*.postman_collection.json; do
-          if [ -f "$collection" ]; then
-            collection_name=$(basename "$collection" .postman_collection.json)
-            echo "========================================="
-            echo "Running collection: $collection_name"
-            echo "========================================="
-            
-            newman run "$collection" \
-              --env-var baseUrl=$(nginxPublicIP) \
-              --reporters htmlextra,junit,cli \
-              --reporter-htmlextra-export $(Agent.TempDirectory)/newman-reports/${collection_name}-report.html \
-              --reporter-htmlextra-darkTheme \
-              --reporter-htmlextra-logs \
-              --reporter-htmlextra-testPaging \
-              --reporter-junit-export $(Agent.TempDirectory)/newman-reports/${collection_name}-results.xml \
-              --color on
-            
-            if [ $? -ne 0 ]; then
-              echo "❌ Collection $collection_name failed"
-              success=false
-            else
-              echo "✅ Collection $collection_name passed"
-            fi
-            echo ""
-          fi
-        done
-        
-        # Crear reporte consolidado
-        echo "========================================="
-        echo "Test Summary:"
-        echo "========================================="
-        ls -la $(Agent.TempDirectory)/newman-reports/
-        
-        if [ "$success" = false ]; then
-          echo "Some tests failed, but continuing to publish results..."
-          exit 1
-        fi
-      displayName: 'Run Newman Tests'
-      continueOnError: true
+        echo "🔍 Running semantic-release dry-run..."
+        npx semantic-release --dry-run
+      displayName: 'Semantic Release Dry Run'
+      env:
+        GITHUB_TOKEN: $(GITHUB_TOKEN)
     
-    # Publicar todos los resultados XML
-    - task: PublishTestResults@2
+    - script: |
+        echo "🚀 Running semantic-release..."
+        npx semantic-release
+      displayName: 'Semantic Release'
+      env:
+        GITHUB_TOKEN: $(GITHUB_TOKEN)
+        GIT_AUTHOR_NAME: Azure DevOps
+        GIT_AUTHOR_EMAIL: azuredevops@company.com
+        GIT_COMMITTER_NAME: Azure DevOps
+        GIT_COMMITTER_EMAIL: azuredevops@company.com
+    
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Release Notes'
       inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: '$(Agent.TempDirectory)/newman-reports/*-results.xml'
-        testRunTitle: 'Newman API Tests'
-        mergeTestResults: true
-      displayName: 'Publish Test Results'
+        targetPath: 'release-notes'
+        artifact: 'release-notes'
       condition: always()
     
-    # Publicar todos los reportes HTML
-    - task: PublishBuildArtifacts@1
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish CHANGELOG'
       inputs:
-        pathToPublish: '$(Agent.TempDirectory)/newman-reports'
-        artifactName: 'newman-reports'
-        publishLocation: 'Container'
-      displayName: 'Publish HTML Reports'
+        targetPath: 'CHANGELOG.md'
+        artifact: 'changelog'
       condition: always()
-      
-- stage: LoadTests
-  displayName: 'Run Load Tests with Locust'
-  dependsOn: TestAPI
-  condition: succeeded()
-  jobs:
-    - job: Load
-      displayName: 'Load Testing with Locust'
-      pool:
-        vmImage: 'windows-latest'
-      steps:
-        - checkout: self
 
-        - task: AzureCLI@2
-          displayName: 'Login to Azure y obtener IP pública del nginx'
-          inputs:
-            azureSubscription: '$(AZURE_ACCOUNT)'
-            scriptType: bash
-            scriptLocation: inlineScript
-            inlineScript: |
-              az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksClusterName) --overwrite-existing
-              IP=$(kubectl get svc $(nginxServiceName) -n $(kubernetesNamespace) -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-              echo "##vso[task.setvariable variable=nginxPublicIP]$IP"
 
-        # Instalar Python
-        - task: UsePythonVersion@0
-          displayName: 'Install Python'
-          inputs:
-            versionSpec: '3.9'
-            addToPath: true
-
-        # Instalar dependencias de Locust
-        - task: PowerShell@2
-          displayName: 'Install Locust Dependencies'
-          inputs:
-            targetType: 'inline'
-            script: |
-              Write-Host "📦 Installing Locust and dependencies..."
-              python -m pip install --upgrade pip
-              
-              # Verificar si existe requirements.txt en load-testing
-              if (Test-Path "load-testing/requirements.txt") {
-                  Write-Host "Found requirements.txt in load-testing directory"
-                  pip install -r load-testing/requirements.txt
-              } elseif (Test-Path "requirements.txt") {
-                  Write-Host "Found requirements.txt in root directory"
-                  pip install -r requirements.txt
-              } else {
-                  Write-Host "No requirements.txt found, installing Locust directly"
-                  pip install locust
-              }
-              
-              Write-Host "✅ Locust dependencies installed successfully"
-              python -m locust --version
-
-        # Ejecutar pruebas de carga
-        - task: PowerShell@2
-          displayName: 'Run Locust Load Tests'
-          inputs:
-            targetType: 'inline'
-            script: |
-              Write-Host "🌐 Using Public IP: $(nginxPublicIP)"
-              .\run-locust.ps1 -TargetIP "$(nginxPublicIP)"
-
-        # Publicar resultados de carga
-        - task: PublishBuildArtifacts@1
-          displayName: 'Publish Load Test Results'
-          inputs:
-            pathToPublish: 'load-testing/resultados-carga'
-            artifactName: 'locust-load-results'
-          condition: always()
-
-        # Publicar resultados de estrés
-        - task: PublishBuildArtifacts@1
-          displayName: 'Publish Stress Test Results'
-          inputs:
-            pathToPublish: 'load-testing/resultados-estres'
-            artifactName: 'locust-stress-results'
-          condition: always()
 
 - stage: NotifyFailure
   displayName: "Notificar Fallo en Teams"
   dependsOn:
     - Tests
+    - SemanticRelease
+    - ManualApproval
     - Deploy
-    - TestAPI
-    - ZAPScan
-    - LoadTests
+    - SemanticRelease
   condition: failed()
   jobs:
     - job: NotifyJob
@@ -888,4 +505,5 @@ stages:
                     }
                   }]
                 }'
+
 
