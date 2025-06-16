@@ -189,13 +189,6 @@ Content-Type: application/json
         ```bash
         docker-compose up -d --no-deps <nombre-del-servicio>
         ```
-*   **Local (Minikube)**:
-    1.  Realiza los cambios en el código y reconstruye la imagen Docker localmente.
-    2.  Asegúrate de que Minikube pueda acceder a tus imágenes locales.
-    3.  Actualiza el deployment correspondiente:
-        ```bash
-        kubectl rollout restart deployment/<nombre-del-deployment>
-        ```
 *   **Azure**:
     1.  Realiza los cambios en el código y haz push a la rama correspondiente (develop, stage, master).
     2.  El pipeline de Azure DevOps configurado para ese microservicio se disparará automáticamente, construirá la nueva imagen y la desplegará en la VM.
