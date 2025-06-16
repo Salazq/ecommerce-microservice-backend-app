@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderServiceImpl implements OrderService {
 	
 	private final OrderRepository orderRepository;
-	private static final String ORDER_SERVICE = "orderService"; // Circuit breaker name
+	private static final String ORDER_SERVICE = "orderService";
 
 	@Value("${features.newSearchAlgorithm.enabled:false}")
 	private boolean newSearchAlgorithmEnabled;
