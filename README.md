@@ -1,10 +1,14 @@
 # Manual de Operación y Mantenimiento
 
+## Integrantes:
+- Juan Camilo Salazar
+- Samuel Gutiérrez
+
 ## Arquitectura Implementada
 
-Este proyecto es una aplicación de microservicios basada en el ejemplo de [bortizf](https://github.com/bortizf/microservice-app-example). Se realizaron modificaciones para implementar patrones de nube como API Gateway y limitación de tasa (rate limiting), y para permitir el despliegue en Azure mediante pipelines de infraestructura y desarrollo.
+Este proyecto es una aplicación de microservicios basada en el ejemplo de [SelimHorri](https://github.com/SelimHorri/ecommerce-microservice-backend-app). Se realizaron modificaciones para implementar tres patrones de nube; test unitatios, de integración, E2E, de rendimeinto y seguridad; y para permitir el despliegue local con contenedores de Docekr, minikube y en Azure mediante pipelines de infraestructura y desarrollo.
 
-![image](https://github.com/user-attachments/assets/7ba03009-f55b-4fb0-a5e2-1bd406691fdf)
+![image](https://github.com/user-attachments/assets/00ce7511-55c1-45e8-9930-c2be8cd4a80d)
 
 ## Componentes del Sistema
 
@@ -31,7 +35,7 @@ Cada microservicio se encuentra en su respectiva carpeta dentro del repositorio 
 
 1.  Asegúrate de tener Docker y Docker Compose instalados.
 2.  Clona este repositorio.
-3.  En la raíz del proyecto, ejecuta el siguiente comando para levantar todos los servicios:
+3.  En la raíz del proyecto, ejecuta el script build-all.ps1 para buildear todo, despúes ejecuta el siguiente comando para levantar todos los servicios:
     ```bash
     docker-compose up -d
     ```
@@ -39,98 +43,137 @@ Cada microservicio se encuentra en su respectiva carpeta dentro del repositorio 
 
 ### Local (Minikube)
 
-1.  Asegúrate de tener Minikube y kubectl instalados.
+1.  Asegúrate de tener Docker, Minikube y kubectl instalados.
 2.  Inicia Minikube:
     ```bash
     minikube start
     ```
-3.  Aplica los manifiestos de Kubernetes ubicados en la carpeta `k8s/`:
+3.  Ejecuta el script build-all.ps1 para buildear todo y aplica los manifiestos de Kubernetes ubicados en la carpeta `k8s/`:
     ```bash
     kubectl apply -f k8s/
     ```
-4.  Obtén la IP del servicio `nginx-proxy` para acceder a la aplicación:
-    ```bash
-    minikube service nginx-proxy --url
-    ```
-    Esto te dará una URL para acceder a la aplicación. Generalmente, Nginx estará expuesto en el puerto 80.
+4.  La aplicación estará accesible a través del puerto 80 (nginx).
 
-### Azure (Mediante Azure Pipelines)
+### Azure 
 
 El despliegue en Azure se gestiona a través de Azure Pipelines.
 
 1.  **Configuración Inicial:**
-    *   Se requiere un pipeline de infraestructura ([infrastructure repository](https://github.com/Salazq/microservice-app-example-deployments)) que utiliza Terraform para aprovisionar una máquina virtual en Azure y Ansible para instalar Docker y clonar el repositorio.
-    *   Se definen pipelines de desarrollo para cada microservicio y para Nginx. Estos pipelines construyen la aplicación, acceden a la VM vía SSH, detienen el contenedor correspondiente, lo reconstruyen y lo vuelven a levantar. El pipeline principal para la aplicación se encuentra en `azure-pipelines.yml`.
+    *   Se requiere un pipeline para subir la infraestructura, el script para ello se llama up.yml y se encuentra en la carpeta pipeline en [infrastructure repository](https://github.com/Salazq/ecommerce-microservice-backend-app-setup) que utiliza Terraform para crear un cluster de kubernets en aks.
+    * Se requiere un pipeline para bajar la infraestructura, el script para ello se llama down.yml y se encuentra en en el mismo lugar que el anterior.
+    *   Se definen tres pipelines para cada uno de los ambientes(dev, stage,prod) en la carpeta pipelines de este repositorio, los scripts se llaman dev-full.yml, stage-full.yml y master.yml.
+          * Dev: buildea todos los microservicios, ejecuta los test unitarios y los de integración y sube las imagenes a DockerHub con la etiqueta “dev”
+          * Stage: realiza lo anterior, además de ejecutar SonarQube y Trivy (más el resto de test que se explican en la siguiente sección), y el deploy de la pods.
+          * master (prod): solo se realiza el buildeo, análisis de SonarQube, confirmación manual antes de hacer deploy,  pusheo de imágenes y versionado semántico que se utiliza para taggear las release notes.
+
 
 2.  **Variables de Pipeline:**
     *   Crea un grupo de variables en Azure DevOps llamado `variable-group-taller`.
     *   Define las siguientes variables en el grupo:
         *   `AZURE_ACCOUNT`
-        *   `RESOURCE_GROUP`
-        *   `VM_NAME`
-        *   `VM_PASSWORD`
-        *   `VM_USERNAME`
+        *   `GITHUB_TOKEN`
+    * Define un secure file llamado .grafana con el script de moniotreo generado por configuración de Grafana Cloud.
+
 
 3.  **Ejecución:**
-    *   Ejecuta el pipeline `Infrastructure-up` para desplegar la infraestructura y la aplicación.
-    *   Para remover la infraestructura, ejecuta el pipeline `Infrastructure-down`.
-    *   Cada vez que se realice un cambio en un microservicio, el pipeline correspondiente se disparará automáticamente (si está configurado con triggers para las ramas adecuadas).
+    *   Para subir la infraestructura, ejecuta la pipeline que contiente `up.yml` (con dev, stage o prod dependiendo del entorno que se va a ejecutar).
+    *   Ejecuta la pipelenie que contiene uno de los entornos (dev, stage, master) o espera a que se corran automáticamente al hacer push hacia las ramas del mismo nombre.
+    *   Para remover la infraestructura, ejecuta el pipeline que contiene `down.yml`.
+  
+## Ejecución de tests:
+* Unitatios y de integración: `mvnw.cmd verify`
+* E2E: `powershell -ExecutionPolicy Bypass -File run-all-tests.ps1 -BaseUrl <IP_TARGET>`
+* Locust: `powershell -ExecutionPolicy Bypass -File run-locust.ps1 -TargetIP <IP_TARGET>`
 
 ## Dashboards y Puertos de Acceso
 
 *   **Aplicación Principal (Nginx)**:
-    *   Docker Engine: `http://localhost:80`
-    *   Minikube: IP y puerto obtenidos con `minikube service nginx-proxy --url` (generalmente puerto 80).
+    *   Docker Engine y Minikube: `http://localhost:80`
+    *   : `http://localhost:80`
     *   Azure: IP pública de la VM en el puerto 80.
 *   **Zipkin (Trazabilidad)**:
-    *   Docker Engine: `http://localhost:9411`
-    *   Minikube: `kubectl port-forward svc/zipkin 9411:9411` y luego accede a `http://localhost:9411`.
+    *   Docker Engine y Minikube: `http://localhost:9411`
     *   Azure: No expuesto públicamente por defecto, accesible desde dentro de la red virtual.
 *   **Service Discovery (Eureka)**:
-    *   Docker Engine: `http://localhost:8761`
-    *   Minikube: `kubectl port-forward svc/service-discovery 8761:8761` y luego accede a `http://localhost:8761`.
-    *   Azure: No expuesto públicamente por defecto.
-*   **API Gateway (Spring Cloud Gateway)**:
-    *   Docker Engine: `http://localhost:8080` (acceso directo, aunque se recomienda a través de Nginx).
-*   **Otros Microservicios (acceso directo para depuración, no recomendado para uso normal)**:
+    *   Docker Engine y Minikube: `http://localhost:8761`
+    *   Azure:`http://{{ip-pública}}/eureka`
+*   **Otros Microservicios (no recomendado para uso normal)**:
     *   `cloud-config`: `http://localhost:9296`
     *   `proxy-client`: `http://localhost:8900`
     *   `order-service`: `http://localhost:8300`
     *   `product-service`: `http://localhost:8500`
     *   `user-service`: `http://localhost:8700`
-    *   (Los puertos para `favourite-service`, `payment-service`, `shipping-service` se pueden encontrar en sus respectivos `compose.yml` o `deployment.yaml` si se exponen directamente, aunque típicamente se accede a ellos a través del API Gateway).
 
 ## Ejemplos de Consulta (a través de Nginx)
 
-Asumiendo que Nginx está en `http://localhost` (o la IP correspondiente en Minikube/Azure).
+Asumiendo que Nginx está en `http://localhost` (o la IP correspondiente en Azure).
 
 *   **Obtener todos los productos:**
     ```
-    GET /product-service/api/v1/products
+    GET /product-service/api/products
+    ```
+*   **Obtener todos los usuarios:**
+    ```
+    GET /user-service/api/users/
+    ```
+*   **Obtener todas la categorías:**
+    ```
+    GET /product-service/api/categories
     ```
 *   **Crear un usuario:**
     ```
-    POST /user-service/api/v1/users
+    POST /user-service/api/users
     Content-Type: application/json
 
     {
-      "name": "John Doe",
-      "email": "john.doe@example.com",
-      "password": "securepassword"
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "email": "jane.smith@test.com",
+      "phone": "+1234567890",
+      "imageUrl": "http://example.com/image.jpg",
+      "credential": {
+        "username": "janesmith",
+        "password": "password123",
+        "roleBasedAuthority": "ROLE_USER",
+        "isEnabled": true,
+        "isAccountNonExpired": true,
+        "isAccountNonLocked": true,
+        "isCredentialsNonExpired": true
+      }
     }
     ```
-*   **Realizar un pedido:**
-    ```
-    POST /order-service/api/v1/orders
-    Content-Type: application/json
+*   **Crear una categoría:**
+```
+POST /product-service/api/categories
+Content-Type: application/json
 
-    {
-      "userId": 1,
-      "productIds": [101, 102],
-      "totalAmount": 150.75
+{
+    "categoryTitle": "Smartphones",
+    "imageUrl": "https://example.com/smartphones.jpg",
+    "parentCategory": {
+        "categoryId": 1
     }
-    ```
-    *(Nota: Los endpoints exactos y los cuerpos de las solicitudes pueden variar. Consulta la documentación o el código de cada microservicio para obtener detalles precisos. Las rutas a través de Nginx dependerán de la configuración del API Gateway y de Nginx).*
+}
+```
+*   **Crear un producto:**
+```
+POST /product-service/api/products
+Content-Type: application/json
+
+{
+  "productTitle": "Samsung Galaxy S24",
+  "imageUrl": "https://example.com/galaxys24.jpg",
+  "sku": "SAM24GAL001",
+  "priceUnit": 849.99,
+  "quantity": 30,
+  "category": {
+        "categoryId": {{categoryId}},
+        "categoryTitle": "{{categoryTitle}}",
+        "imageUrl": "{{imageUrl}}"
+    }
+}
+```
+
 
 ## Mantenimiento
 
@@ -148,48 +191,16 @@ Asumiendo que Nginx está en `http://localhost` (o la IP correspondiente en Mini
         ```
 *   **Local (Minikube)**:
     1.  Realiza los cambios en el código y reconstruye la imagen Docker localmente.
-    2.  Asegúrate de que Minikube pueda acceder a tus imágenes locales (ej. `eval $(minikube docker-env)` o subiendo a un registro).
+    2.  Asegúrate de que Minikube pueda acceder a tus imágenes locales.
     3.  Actualiza el deployment correspondiente:
         ```bash
         kubectl rollout restart deployment/<nombre-del-deployment>
         ```
-        O, si cambiaste la etiqueta de la imagen, edita el manifiesto del deployment y aplica los cambios.
 *   **Azure**:
     1.  Realiza los cambios en el código y haz push a la rama correspondiente (develop, stage, master).
     2.  El pipeline de Azure DevOps configurado para ese microservicio se disparará automáticamente, construirá la nueva imagen y la desplegará en la VM.
 
-### Escalado
 
-*   **Local (Docker Engine)**:
-    ```bash
-    docker-compose up -d --scale <nombre-del-servicio>=<numero-de-instancias>
-    ```
-*   **Local (Minikube)/Azure (AKS si se usara)**:
-    Modifica el campo `replicas` en el archivo `deployment.yaml` del servicio y aplica los cambios:
-    ```bash
-    kubectl apply -f k8s/<servicio>-deployment.yaml
-    ```
-    O usa el comando:
-    ```bash
-    kubectl scale deployment/<nombre-del-deployment> --replicas=<numero-de-instancias>
-    ```
-
-### Monitorización y Logs
-
-*   **Logs de Contenedores (Docker Engine)**:
-    ```bash
-    docker-compose logs -f <nombre-del-servicio>
-    ```
-*   **Logs de Pods (Minikube)**:
-    ```bash
-    kubectl logs -f <nombre-del-pod>
-    ```
-    Para ver los logs de un deployment:
-    ```bash
-    kubectl logs -f deployment/<nombre-del-deployment>
-    ```
-*   **Trazabilidad (Zipkin)**: Accede al dashboard de Zipkin (ver sección "Dashboards y Puertos de Acceso") para visualizar las trazas de las solicitudes entre microservicios.
-*   **Métricas (Prometheus/Grafana - si estuvieran configurados)**: Este proyecto base no incluye Prometheus/Grafana, pero `prometheus-patch.json` y `grafana-config-patch.yaml` sugieren intenciones de integrarlos. Si se implementan, sus dashboards serían los puntos de acceso para métricas.
 
 ### Configuración de Nginx (API Gateway y Rate Limiting)
 
@@ -201,17 +212,5 @@ Asumiendo que Nginx está en `http://localhost` (o la IP correspondiente en Mini
         docker-compose build nginx
         docker-compose up -d --no-deps nginx
         ```
-    *   **Local (Minikube)**: Si la configuración está en un ConfigMap, actualiza el ConfigMap y reinicia los pods de Nginx. Si está en la imagen, reconstruye la imagen y actualiza el deployment.
     *   **Azure**: El pipeline de Nginx debería encargarse de redesplegar los cambios.
 
-### Gestión de Dependencias (Maven)
-
-*   El proyecto utiliza Maven para la gestión de dependencias Java. El archivo principal es `pom.xml` en la raíz y en cada microservicio.
-*   Para actualizar dependencias, modifica el `pom.xml` correspondiente y reconstruye el artefacto/imagen.
-
-### Estrategia de Ramificación
-
-*   **Desarrollo (GitFlow)**: Se utiliza para la gestión estructurada de microservicios, con ramas de feature, develop y main.
-*   **Operaciones (GitHub Flow)**: Para la infraestructura y procesos de despliegue, con una rama principal `main` y ramas de feature de corta duración.
-
-Este manual proporciona una visión general. Para detalles específicos de cada microservicio o componente, consulta su documentación individual o código fuente.
