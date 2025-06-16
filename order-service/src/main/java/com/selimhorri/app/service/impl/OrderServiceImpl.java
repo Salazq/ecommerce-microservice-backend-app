@@ -7,6 +7,8 @@ import java.util.stream.Collectors;
 import javax.transaction.Transactional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 
 import com.selimhorri.app.dto.OrderDto;
 import com.selimhorri.app.exception.wrapper.OrderNotFoundException;
@@ -22,15 +24,26 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 @Slf4j
 @RequiredArgsConstructor
+@RefreshScope
 public class OrderServiceImpl implements OrderService {
 	
 	private final OrderRepository orderRepository;
 	private static final String ORDER_SERVICE = "orderService"; // Circuit breaker name
+
+	@Value("${features.newSearchAlgorithm.enabled:false}")
+	private boolean newSearchAlgorithmEnabled;
 	
 	@Override
 	@CircuitBreaker(name = ORDER_SERVICE, fallbackMethod = "fallbackFindAllOrders")
 	public List<OrderDto> findAll() {
 		log.info("*** OrderDto List, service; fetch all orders *");
+		
+		if (newSearchAlgorithmEnabled) {
+			log.info("SE APLICO Y SE ESTA USANDO LA NUEVA CONFIGURACIÓN DEL SEARCH ALGORITHM!"); 
+			
+		} else {
+			log.info("SE ESTA USANDO LA CONFIGURACIÓN ANTIGUA DEL SERCH ALGORITHM!");
+		}
 		return this.orderRepository.findAll()
 				.stream()
 					.map(OrderMappingHelper::map)

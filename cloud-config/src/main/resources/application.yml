@@ -12,9 +12,15 @@ spring:
     config:
       server:
         git:
-          uri: https://github.com/Salazq/cloud-config-server
+          uri: https://github.com/SamuelGutierrez24/cloud-config-server
           clone-on-start: true
-
+          default-label: master
+          force-pull: true
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
 eureka:
   client:
     register-with-eureka: true

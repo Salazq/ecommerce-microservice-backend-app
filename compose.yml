@@ -43,12 +43,15 @@ services:
         condition: service_healthy
       service-discovery:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     ports:
       - 9296:9296
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
       - EUREKA_INSTANCE=cloud-config
+      - SPRING_RABBITMQ_HOST=rabbitmq
     networks:
       - ecommerce-network
     healthcheck:
@@ -120,13 +123,20 @@ services:
     ports:
       - 8300:8300
     depends_on:
-      proxy-client:
+      # Ensure cloud-config and service-discovery are healthy before starting order-service
+      cloud-config:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      # Ensure rabbitmq is started and healthy before order-service
+      rabbitmq:
         condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/
       - SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config:9296
       - EUREKA_INSTANCE=order-service
+      - SPRING_RABBITMQ_HOST=rabbitmq
     networks:
       - ecommerce-network
     healthcheck:
@@ -241,7 +251,26 @@ services:
         restart_policy:
           condition: on-failure
           delay: 15s
-
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+volumes:
+  rabbitmq_data:
 
   # shipping-service:
   #   build:
