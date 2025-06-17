@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.8](https://github.com/Salazq/ecommerce-microservice-backend-app/compare/v1.0.7...v1.0.8) (2025-06-17)
+
+
+### 🐛 Bug Fixes
+
+* nginx config ([b823f21](https://github.com/Salazq/ecommerce-microservice-backend-app/commit/b823f214af5310f1ddd5c3429ccd575684b174bd))
+
 ## [1.0.7](https://github.com/Salazq/ecommerce-microservice-backend-app/compare/v1.0.6...v1.0.7) (2025-06-16)
 
 
